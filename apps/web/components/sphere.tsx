@@ -28,13 +28,16 @@ export const lookOf = (kind: SphereKind = "base", state?: SphereState) => `${kin
 function tick(look: string, now: number) {
   let c = clocks.get(look);
   if (!c) clocks.set(look, (c = { t: 0, last: now }));
-  if (now !== c.last) c.t += Math.min(now - c.last, 100) * (speeds.get(look) ?? 1);
-  c.last = now;
+  // A frame's timestamp can predate the performance.now() that started the clock, so never step back.
+  if (now > c.last) {
+    c.t += Math.min(now - c.last, 100) * (speeds.get(look) ?? 1);
+    c.last = now;
+  }
   return c.t;
 }
 
 /** `latlong` is set aside for now: nothing draws it, but it's kept to come back to. */
-export type SphereKind = "base" | "noise" | "sparse" | "rings" | "meridians" | "band" | "latlong";
+export type SphereKind = "base" | "noise" | "sparse" | "rings" | "meridians" | "band" | "latlong" | "rows";
 /** What the sphere is doing on top of its spin. Grows one state at a time. */
 export type SphereState =
   | "base-steps"
@@ -60,10 +63,14 @@ export type SphereState =
   | "reasoning-connect-chain"
   | "reasoning-connect-two"
   | "reasoning-connect-rim"
+  | "fetching-inflow"
+  | "fetching-lines"
+  | "fetching-fill"
+  | "fetching-tether"
   | "reasoning-layers"
   | "reasoning-inhale"
   | "searching"
-  | "listening"
+  | "subagent"
   | "listening-wobble"
   | "background"
   | "background-behind"
@@ -207,7 +214,7 @@ function nlerp(a: number[], b: number[], e: number) {
 /** Compacting: the ends turn up to this far (rad) against the middle, opposite ways, like wringing. */
 const TWIST = 1.4;
 /**
- * Working · Tilt's ring axis in view space: tipped 30° toward you, then rolled 10° counter-clockwise
+ * Working · Wave's ring axis in view space: tipped 30° toward you, then rolled 10° counter-clockwise
  * on screen, so the ring leans with its right end higher.
  */
 const RING_AXIS = (() => {
@@ -322,6 +329,8 @@ function distribute(kind: SphereKind, size: number, count: number, step: number)
     });
   switch (kind) {
     case "latlong":
+    case "rows":
+      // Rows is latlong's points drawn in Base's crisp style, for states that need real rows.
       return latlong(size);
     case "noise":
       // Uniform random on the sphere (random height, random angle), seeded so it's the same every load.
@@ -368,7 +377,7 @@ export const TILT = 20;
  * and meridians like a globe, and ignores `density`. `duration` is the ms for one full
  * turn. `tilt` leans the axis toward you, in degrees: 0 spins edge-on, 90 looks straight
  * down the pole. `state` layers a behaviour on the spin: `searching` sends a magnifying
- * lens wandering over the front, swelling and enlarging the dots under it. `listening`
+ * lens wandering over the front, swelling and enlarging the dots under it. `subagent` (once Listening)
  * sends ripples out from the front with a simulated voice; `listening-wobble` undulates
  * the whole surface with it instead. `background` is Base dimmed to half and slowed to a
  * quarter; `-behind` shows the far side instead of the near one, `-breath` swells slowly,
@@ -394,7 +403,7 @@ export const TILT = 20;
  * on a spring that bounces to rest, `-rewind-antic` the same after a 14° wind-up forward,
  * `-rewind-30` that with only 30% given back. `working-wave` is Base with a band of light
  * running down it every 2s, `-pull` packing what it's passed, shallower than Compacting,
- * `-tilt` the same with the ring tipped toward you and leaning right-end-up, `-steady` running it
+ * `working-wave-tilt` the same with the ring tipped toward you and leaning right-end-up, `working-wave-steady` running it
  * evenly with no rest and a pull that rides with it, `-easein` letting go of the pull
  * slow-then-fast; `wave-across` runs it left to right every 1.5s;
  * `wave-spiral` lights the spiral arms in turn, a lap every 1.5s. `working-spin` is Base at
@@ -514,6 +523,16 @@ export function Sphere({
             return svg.insertBefore(l, dots[0]);
           })
         : [];
+    // Fetching · Inflow: specks that fly in from beyond the rim and land on a dot.
+    // At 24px and under, fewer, bigger, slower specks, so each one reads on its own.
+    const small = size <= 24;
+    const specks = state === "fetching-inflow" ? Array.from({ length: small ? 3 : 12 }, circle) : [];
+    const SPECK = small ? 2000 : 1400;
+    // Fetching · Tether: four dots reaching from the rim toward the top-right corner.
+    const tether = state === "fetching-tether" ? Array.from({ length: 4 }, circle) : [];
+    // Fetching · Lines: each dot's row, top row first (on the rows distribution, every row is one latitude).
+    const ys = state === "fetching-lines" ? [...new Set(pts.map((p) => p[1].toFixed(3)))].sort((a, b) => +b - +a) : [];
+    const rowOf = pts.map((p) => ys.indexOf(p[1].toFixed(3)));
 
     const draw = (t: number) => {
       // States spin at half speed, so what they do on top reads first; the first background
@@ -562,11 +581,31 @@ export function Sphere({
           : state === "reasoning-layers"
             ? [0.5, 1.5].map((k) => [Math.sin(yaw * k), Math.cos(yaw * k)])
             : null;
+      // How far a dot faces you right now (spin and tilt only), which Connect's walk and Inflow steer by.
+      const facing = (k: number) => pts[k][1] * st + (-pts[k][0] * sy + pts[k][2] * cy) * ct;
+      // Inflow: each speck runs its own 1.4s cycle (2s when small), staggered. It picks the front-most of three
+      // random dots, flies in over the first 70%, and the dot flashes as it lands.
+      const landing = new Map<number, [number, number]>();
+      specks.forEach((_, s) => {
+        const u = t / SPECK + s / specks.length, n = Math.floor(u);
+        const pick = [0, 1, 2]
+          .map((j) => Math.floor(hash(n * 13 + s * 101 + j + 1) * pts.length))
+          .reduce((b, k) => (facing(k) > facing(b) ? k : b));
+        landing.set(pick, [s, u - n]);      });
+      specks.forEach((sp) => sp.setAttribute("fill-opacity", "0"));
+      // Tether: a pulse runs in along the tether over 0.8s of every 1.4s, then the rim where it lands flashes.
+      const tp = (t % 1400) / 1400;
+      tether.forEach((d, j) => {
+        const along = (j + 1) / tether.length, rad = (0.9 + 0.13 * j) * c;
+        d.setAttribute("cx", (c + Math.SQRT1_2 * rad).toFixed(2));
+        d.setAttribute("cy", (c - Math.SQRT1_2 * rad).toFixed(2));
+        d.setAttribute("r", Math.max(0.45, 1.2 * rs).toFixed(2));
+        const pulse = tp < 0.6 ? Math.exp(-(((along - (1 - tp / 0.6)) / 0.2) ** 2)) : 0;
+        d.setAttribute("fill-opacity", (0.3 + 0.7 * pulse).toFixed(2));
+      });
       // Connect: how lit each dot on the walk's tail is, the head brightest.
       const lit = new Map<number, number>();
       if (near.length) {
-        // How far a dot faces you right now (spin and tilt only), which the walk steers by.
-        const facing = (k: number) => pts[k][1] * st + (-pts[k][0] * sy + pts[k][2] * cy) * ct;
         const s = t / HOP, n = Math.floor(s), f = s - n;
         // Rim's second walker keeps to the edge: it scores dots by how close they sit to facing
         // 0.25, just inside the rim, where they're still big enough to read when lit.
@@ -746,7 +785,7 @@ export function Sphere({
         }
         // Listening deforms the surface: each dot moves along its own radius by `disp`.
         let disp = 0;
-        if (state === "listening") {
+        if (state === "subagent") {
           // Rings travel from the point facing you (u=0) to the rim (u=1) in about a second,
           // each carrying the voice level from when it left, so bursts ride outward.
           const u = Math.acos(Math.max(-1, Math.min(1, vz))) / (Math.PI / 2);
@@ -802,7 +841,7 @@ export function Sphere({
             a += (1 - a) * g;
           }
         }
-        if (state?.startsWith("working-wave") || state?.startsWith("wave")) {
+        if (state === "working-wave-tilt" || state?.startsWith("working-wave") || state?.startsWith("wave")) {
           // Every 2s a band of latitude eases down the sphere over 1.2s, then it rests. Base's
           // front is already at full, so the light shows by lighting what Base hides: the band
           // reaches round the back too, a ring of light running through the globe. Across runs
@@ -810,13 +849,13 @@ export function Sphere({
           // Spiral follows Fibonacci's own lines instead: dots `arm` apart sit on one spiral arm,
           // and the light steps round from arm to arm, a lap every 1.5s.
           // Steady runs its ring at an even speed with no rest, a new one leaving as the last goes.
-          // Working (Tilt) runs every 1.7s: 1.2s ring, 0.5s release, straight into the next ring with no hold.
+          // Working · Wave runs every 1.7s: 1.2s ring, 0.5s release, straight into the next ring with no hold.
           const across = state === "wave-across", steady = state === "working-wave-steady";
           const P = across ? 1500 : state === "working-wave-tilt" ? 1700 : 2000;
           const u = t % P, at = steady ? 1.15 - 2.3 * (u / P) : 1.3 - 2.6 * ease(Math.min(1, u / 1200));
           const off = Math.abs((i % arm) - ((t / 1500) % 1) * arm), gap = Math.min(off, arm - off);
           // Where the ring is, in this dot's terms: its height on the sphere (y is vy·cos 20° +
-          // vz·sin 20°), or for Tilt its height along RING_AXIS, so its front arc bows down and its right end rides up.
+          // vz·sin 20°), or for Working · Wave its height along RING_AXIS, so its front arc bows down and its right end rides up.
           const q =
             across ? -vx : state === "working-wave-tilt" ? vx * RING_AXIS[0] + vy * RING_AXIS[1] + vz * RING_AXIS[2] : y;
           const g =
@@ -825,7 +864,7 @@ export function Sphere({
               : steady || u < 1200
                 ? Math.exp(-(((q - at) / 0.2) ** 2))
                 : 0;
-          const working = state?.startsWith("working-wave");
+          const working = state === "working-wave-tilt" || state?.startsWith("working-wave");
           r *= 1 + 0.6 * g;
           a += (1 - a) * (working ? 1 : 0.8) * g;
           if (state === "working-wave-pull" || state === "working-wave-easein" || state === "working-wave-tilt") {
@@ -853,16 +892,36 @@ export function Sphere({
         if (state === "reasoning-sparks") {
           const s = (t / 8000 + hash(i + 1)) % 1;
           spark = s < 0.05 ? Math.sin((s / 0.05) * Math.PI) : 0;
+        } else if (state === "fetching-inflow") {
+          const l = landing.get(i);
+          spark = l && l[1] >= 0.7 ? 1 - (l[1] - 0.7) / 0.3 : 0;
+        } else if (state === "fetching-lines") {
+          // Rows light top to bottom, one every 160ms with two fading behind, then a short pause.
+          const back = ((t / 160) % (ys.length + 4)) - rowOf[i];
+          spark = back >= 0 && back < 3 ? 1 - back / 3 : 0;
+        } else if (state === "fetching-tether" && tp >= 0.6) {
+          // Where the tether meets the sphere (top right, toward you) flashes as the pulse arrives.
+          const dd = (vx - 0.62) ** 2 + (vy - 0.62) ** 2 + (vz - 0.48) ** 2;
+          spark = Math.exp(-dd / 0.12) * (1 - (tp - 0.6) / 0.4);
         } else spark = lit.get(i) ?? 0;
-        // Dim rests the sphere at 50%, so only the walk's dots reach full.
+        // Reasoning's walk and Fetching rest the sphere at 50%, so only what's lit reaches full.
+        // Small Fetching rests at 70%, since half-dim leaves too little of a 20px sphere, and flashes bigger.
         if (state?.startsWith("reasoning-connect-")) a *= 0.5;
+        else if (state === "fetching-inflow") a *= small ? 0.7 : 0.5;
         if (spark) {
-          r *= 1 + 0.8 * spark;
+          r *= 1 + (state === "fetching-inflow" && small ? 1.5 : 0.8) * spark;
           a += (1 - a) * spark;
         }
         if (inhale) {
           vx *= 1 - inhale;
           vy *= 1 - inhale;
+        }
+        if (state === "fetching-fill") {
+          // The sphere rests at 30% and fills with light from the bottom over 1.6s, like a level
+          // rising; it holds, then drains back over 0.3s and fills again, every 2.2s.
+          const u = t % 2200, level = -1.1 + 2.2 * ease(Math.min(1, u / 1600));
+          const full = Math.min(1, Math.max(0, (level - vy) / 0.12)) * (u < 1900 ? 1 : 1 - (u - 1900) / 300);
+          a *= 0.3 + 0.7 * full;
         }
         // Background work stays out of the way: everything at half strength. Soft keeps full
         // strength and goes quiet through smaller dots instead; Behind's fading front is quiet enough.
@@ -873,6 +932,19 @@ export function Sphere({
         dot.setAttribute("cy", (c - vy * R * breath).toFixed(2));
         dot.setAttribute("r", (crisp ? Math.max(0.45, r) : r).toFixed(2));
         dot.setAttribute("fill-opacity", a.toFixed(2));
+        const l = landing.get(i);
+        if (l && l[1] < 0.7) {
+          // The speck starts just beyond the rim, straight out from where it lands, and speeds up
+          // on the way in, fading in as it comes.
+          const sp = specks[l[0]], e = (l[1] / 0.7) ** 2, len = Math.hypot(vx, vy);
+          const ang = len > 0.05 ? Math.atan2(vy, vx) : hash(l[0] + 7) * TAU;
+          const x = 1.2 * Math.cos(ang) + (vx - 1.2 * Math.cos(ang)) * e;
+          const y = 1.2 * Math.sin(ang) + (vy - 1.2 * Math.sin(ang)) * e;
+          sp.setAttribute("cx", (c + x * R).toFixed(2));
+          sp.setAttribute("cy", (c - y * R).toFixed(2));
+          sp.setAttribute("r", Math.max(0.6, (small ? 2.5 : 1.8) * r).toFixed(2));
+          sp.setAttribute("fill-opacity", e.toFixed(2));
+        }
         if (halos && (spark || halos[i].getAttribute("fill-opacity") !== "0")) {
           // A halo four times the dot's size, fading with it along the tail.
           const h = halos[i];
