@@ -1,0 +1,26 @@
+/* The playground's own light and dark, set on its wrapper. The prototype
+   window sits inside but re-declares its palette on `.proto`, so it stays
+   dark either way. */
+.pg {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --color-muted-foreground: oklch(0.708 0 0);
+  --color-border: oklch(1 0 0 / 10%);
+  --color-page: oklch(0.24 0 0);
+  --knob: oklch(0.42 0 0);
+  /* The page's colours, resolved here so `.proto` (which re-declares them) can still use them in full screen. */
+  --pg-bg: var(--color-page);
+  --pg-fg: var(--foreground);
+  color-scheme: dark;
+  color: var(--foreground);
+}
+
+.pg[data-mode="light"] {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --color-muted-foreground: oklch(0.556 0 0);
+  --color-border: oklch(0 0 0 / 10%);
+  --color-page: oklch(1 0 0);
+  --knob: oklch(1 0 0);
+  color-scheme: light;
+}

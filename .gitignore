@@ -6,3 +6,11 @@ out/
 .DS_Store
 *.tsbuildinfo
 next-env.d.ts
+
+# Local-only: design tools and experiments that stay on this machine. Only the homepage ships.
+/apps/web/app/playground/
+/apps/web/app/motion/
+/apps/web/app/status/
+/apps/web/prototype/
+/apps/web/registry/status/
+/pnpm-lock.yaml
