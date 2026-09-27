@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "agentui",
-  description: "Copy-paste React components for AI interfaces.",
+  title: "Thinking Orbs",
+  description: "Animated dotted-sphere status orbs for AI agents.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

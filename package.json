@@ -1,5 +1,5 @@
 {
-  "name": "agentui-monorepo",
+  "name": "thinkingorbs",
   "private": true,
   "scripts": {
     "dev": "pnpm --filter web dev",

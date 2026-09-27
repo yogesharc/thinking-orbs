@@ -4,9 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-**agentui** — a copy-paste component library for AI interfaces (chats, thinking orbs, streaming output), distributed shadcn-style: users run `npx agentui@latest add <name>` and the component's source is written into *their* repo. They own the code afterward; there is no runtime package to upgrade.
+**Thinking Orbs** (thinkingorbs.com) — animated dotted-sphere status indicators for AI agents: one sphere, a state for each thing an agent does (working, reasoning, compacting, searching, background tasks, retrying). Distributed shadcn-style: users run `npx thinkingorbs@latest add <name>` and the component's source is written into *their* repo. They own the code afterward; there is no runtime package to upgrade.
 
-The npm name `agentui` is unclaimed and reserved for the CLI. (`agent-ui` is taken — don't use it.)
+The npm name `thinkingorbs` is unclaimed and reserved for the CLI. (`thinking-orbs` is taken — don't use it.)
+
+Only the homepage ships. The design playground (`app/playground/`), the copied Dray app window it previews orbs in (`prototype/`), and the `motion` and `status` pages are local-only and gitignored — never commit them.
 
 ## Commands
 
@@ -25,10 +27,11 @@ No test runner is set up yet. Don't invent one without asking.
 ## Architecture
 
 ```
-apps/web/            Next.js 16 showcase site — also serves the registry
+apps/web/            Next.js 16 site — also serves the registry
+  components/        the sphere (every orb state) and site UI
   registry/          component source of truth, one folder per component
-  app/               showcase pages
-packages/            (empty) — the `agentui` CLI goes here
+  app/               the homepage, showing each orb
+packages/            (empty) — the `thinkingorbs` CLI goes here
 ```
 
 **The registry is the single source of truth with two consumers.** A component written once in `apps/web/registry/<name>/` is:
