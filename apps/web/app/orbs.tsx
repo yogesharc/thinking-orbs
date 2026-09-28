@@ -282,11 +282,6 @@ const onWideChange = (cb: () => void) => {
   return () => mq.removeEventListener("change", cb);
 };
 
-const VIEWS = [
-  { id: "list", label: "List" },
-  { id: "grid", label: "Grid" },
-] as const;
-
 /** Ways to install: the package from each package manager, or shadcn to copy the React source in. */
 const INSTALLS = [
   { id: "npm", label: "npm", command: COMMAND },
@@ -347,23 +342,6 @@ export function Orbs({ stars }: { stars: number | null }) {
     setPicked(item);
   };
 
-  const layout = (
-    <div role="radiogroup" aria-label="Layout" className="mb-4 hidden gap-4 text-sm lg:flex">
-      {VIEWS.map(({ id, label }) => (
-        <button
-          key={id}
-          type="button"
-          role="radio"
-          aria-checked={view === id}
-          onClick={() => setView(id)}
-          className={`transition-colors ${view === id ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-
   return (
     <div
       data-mode={mode}
@@ -406,6 +384,17 @@ export function Orbs({ stars }: { stars: number | null }) {
 
       {/* Pinned on wide screens; on small ones it sits at the top and scrolls away. */}
       <div className="absolute top-12 right-4 z-10 flex items-center gap-4 text-sm sm:right-8 lg:fixed">
+        {/* Small screens only ever show the grid with the chat, so there's nothing to switch. */}
+        <button
+          type="button"
+          onClick={() => {
+            setView(view === "list" ? "grid" : "list");
+            scrollTo({ top: 0 });
+          }}
+          className="hidden text-muted-foreground transition-colors hover:text-foreground lg:block"
+        >
+          {view === "list" ? "View all" : "Back"}
+        </button>
         <a
           href={`https://github.com/${REPO}`}
           aria-label={stars === null ? "GitHub" : `Star on GitHub, ${stars} stars`}
@@ -424,33 +413,29 @@ export function Orbs({ stars }: { stars: number | null }) {
         </button>
       </div>
 
-      {view === "grid" ? (
-        <section id="orbs" aria-label="Orbs" className="min-w-0 scroll-mt-12 lg:col-start-2 lg:row-start-1 lg:py-12">
-          {layout}
-          <OrbGrid />
-        </section>
-      ) : (
-        // Its own box, so the sticky chat is bounded by the cards and scrolls away before the guide.
-        <div className="flex flex-col gap-12 lg:col-start-2 lg:row-start-1 lg:grid lg:grid-cols-[21rem_minmax(0,1fr)] lg:items-start lg:gap-x-16">
-          <aside aria-label="The picked orb in a chat" className="flex items-center lg:sticky lg:top-0 lg:col-start-2 lg:row-start-1 lg:h-screen lg:items-start lg:pt-[30vh] lg:pb-12">
-            <ChatMock
-              rows={wide ? [...SEED, ...orbs.slice(0, orbs.indexOf(picked)).flatMap((o) => (o.done ? [o.done] : []))] : SEED}
-              live={picked.orb.state === "background" ? undefined : picked}
-              tasks={
-                orbs.indexOf(picked) <= orbs.findIndex((o) => o.name === "Compacting · Fuse")
-                  ? orbs.slice(0, orbs.indexOf(picked) + 1).findLast((o) => o.orb.state === "background")
-                  : undefined
-              }
-              className="lg:max-h-full"
-            />
-          </aside>
+      {/* Both views stay mounted and the other is hidden, so switching is instant: hidden orbs stop drawing. */}
+      <section id={view === "grid" ? "orbs" : undefined} hidden={view !== "grid"} aria-label="Orbs" className="min-w-0 scroll-mt-12 lg:col-start-2 lg:row-start-1 lg:pt-24 lg:pb-12">
+        <OrbGrid />
+      </section>
+      {/* Its own box, so the sticky chat is bounded by the cards and scrolls away before the guide. */}
+      <div hidden={view !== "list"} className="flex flex-col gap-12 lg:col-start-2 lg:row-start-1 lg:grid lg:grid-cols-[21rem_minmax(0,1fr)] lg:items-start lg:gap-x-16">
+        <aside aria-label="The picked orb in a chat" className="flex items-center lg:sticky lg:top-0 lg:col-start-2 lg:row-start-1 lg:h-screen lg:items-start lg:pt-[30vh] lg:pb-12">
+          <ChatMock
+            rows={wide ? [...SEED, ...orbs.slice(0, orbs.indexOf(picked)).flatMap((o) => (o.done ? [o.done] : []))] : SEED}
+            live={picked.orb.state === "background" ? undefined : picked}
+            tasks={
+              orbs.indexOf(picked) <= orbs.findIndex((o) => o.name === "Compacting · Fuse")
+                ? orbs.slice(0, orbs.indexOf(picked) + 1).findLast((o) => o.orb.state === "background")
+                : undefined
+            }
+            className="lg:max-h-full"
+          />
+        </aside>
 
-          <section id="orbs" aria-label="Orbs" className="min-w-0 scroll-mt-12 lg:col-start-1 lg:row-start-1 lg:py-12">
-            {layout}
-            <OrbList picked={picked} onPick={pick} />
-          </section>
-        </div>
-      )}
+        <section id={view === "list" ? "orbs" : undefined} aria-label="Orbs" className="min-w-0 scroll-mt-12 lg:col-start-1 lg:row-start-1 lg:py-12">
+          <OrbList picked={picked} onPick={pick} />
+        </section>
+      </div>
 
       <div className="max-w-xl min-w-0 lg:pb-24 lg:col-start-2 lg:row-start-2">
         <Guide id="installation" title="Installation">
