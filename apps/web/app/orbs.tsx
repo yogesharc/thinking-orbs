@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ChatMock, type ChatRow } from "@/components/chat-mock";
 import { Orb, type OrbState } from "@/registry/orb/orb";
+import { LLMS, props, REPO, USAGE, VANILLA } from "./llms";
 
 /**
  * `slug` is the orb's public name, what `<Orb state>` will take. `label` is the line it sits beside
@@ -49,44 +49,11 @@ const SEED: ChatRow[] = [
 
 const COMMAND = "npm i thinkingorbs";
 
-/** Handed to a coding agent: how to install and use the orbs, nothing it should go and do. */
-const PROMPT = `Thinking Orbs (https://thinkingorbs.com): animated status orbs for AI agents, one state for each thing an agent does.
-
-Install
-npm i thinkingorbs (or pnpm add, yarn add, bun add thinkingorbs)
-To copy the React source into the project instead: npx shadcn@latest add https://thinkingorbs.com/r/orb.json
-
-React
-import { Orb } from "thinkingorbs";
-<Orb state="reasoning" />
-
-Without React
-import { mountOrb } from "thinkingorbs/vanilla";
-const stop = mountOrb(svgElement, { state: "reasoning" }); // stop() removes it
-
-Props (all optional)
-state: which orb, default "base"
-size: width and height in px, default 20
-speed: speed multiplier, default 1
-paused: freezes the animation, default false (React only)
-label: name for screen readers
-className: tint it with text-* classes (React only)
-
-States
-working, working-wring: busy, running a tool
-reasoning, reasoning-two: thinking
-searching, searching-lighthouse: searching the web or files
-background, background-spiral: background tasks running
-retrying, retrying-ease-out: retrying after an error
-compacting, compacting-wring, compacting-fuse: compacting context
-waiting: waiting for a usage limit to reset
-base: idle or anything else`;
-
 /** The install command, copied on click, beside a button that copies the agent prompt instead. */
 function Install({ command = COMMAND }: { command?: string }) {
   const [copied, setCopied] = useState<"command" | "prompt" | null>(null);
   const copy = (what: "command" | "prompt") =>
-    navigator.clipboard.writeText(what === "command" ? command : PROMPT).then(() => {
+    navigator.clipboard.writeText(what === "command" ? command : LLMS).then(() => {
       setCopied(what);
       setTimeout(() => setCopied(null), 1500);
     });
@@ -142,7 +109,7 @@ const EDGE = "shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_8%,transp
  */
 function OrbList({ picked, onPick }: { picked: Item; onPick: (item: Item) => void }) {
   return (
-    <ul className="flex flex-col gap-4">
+    <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
       {orbs.map((item) => {
         const on = item === picked;
         return (
@@ -153,7 +120,7 @@ function OrbList({ picked, onPick }: { picked: Item; onPick: (item: Item) => voi
               onClick={(e) => {
                 onPick(item);
                 const r = e.currentTarget.getBoundingClientRect();
-                scrollBy({ top: r.top + r.height / 2 - pickLine(), behavior: "smooth" });
+                if (isWide()) scrollBy({ top: r.top + r.height / 2 - pickLine(), behavior: "smooth" });
               }}
               className={`${CARD} ${on ? RING : EDGE}`}
             >
@@ -178,35 +145,6 @@ function OrbGrid() {
     </ul>
   );
 }
-
-const USAGE = `import { Orb } from "thinkingorbs";
-
-export function Thinking() {
-  return (
-    <span className="flex items-center gap-2 text-sm">
-      <Orb state="reasoning" />
-      Thinking
-    </span>
-  );
-}`;
-
-const VANILLA = `import { mountOrb } from "thinkingorbs/vanilla";
-
-// Draws into any <svg> on the page, in its CSS color.
-const orb = mountOrb(document.querySelector("svg"), { state: "reasoning", label: "Thinking" });
-
-orb.pause(); // hold it on its frame
-orb.play(); // carry on
-orb.destroy(); // remove it`;
-
-const props = [
-  { name: "state", type: "OrbState", fallback: `"base"`, note: "Which orb to draw." },
-  { name: "size", type: "number", fallback: "20", note: "Width and height in px." },
-  { name: "speed", type: "number", fallback: "1", note: "Speed multiplier." },
-  { name: "paused", type: "boolean", fallback: "false", note: "Freezes the animation." },
-  { name: "label", type: "string", fallback: "—", note: "Name for screen readers." },
-  { name: "className", type: "string", fallback: "—", note: "Tint it with text-* classes." },
-];
 
 /**
  * Just enough TSX highlighting for our own snippets, in match order: comments, strings, keywords,
@@ -289,6 +227,26 @@ function Tabs<T extends string>({
 const UNDERLINE =
   "text-muted-foreground underline decoration-foreground/25 decoration-[1.5px] underline-offset-[5px] transition-colors hover:text-foreground hover:decoration-foreground/60";
 
+function Links() {
+  return (
+    <p className="flex flex-wrap items-baseline gap-x-3 text-sm text-muted-foreground">
+      <a href="https://www.patreon.com/c/yogesharc" className={UNDERLINE}>
+        Sponsor
+      </a>
+      <a href="https://x.com/yogesharc" className={UNDERLINE}>
+        X
+      </a>
+      <a href={`https://github.com/${REPO}`} className={UNDERLINE}>
+        GitHub
+      </a>
+      <a href="/llms.txt" className={UNDERLINE}>
+        llms.txt
+      </a>
+      <span>MIT License</span>
+    </p>
+  );
+}
+
 function Credit() {
   return (
     <p className="text-sm text-muted-foreground">
@@ -312,30 +270,14 @@ function GitHubLogo({ className }: { className?: string }) {
 /** How far down the viewport a card has to cross to be picked: a third of the way, so the first card starts picked. */
 const pickLine = () => innerHeight * 0.35;
 
-/** The page for people and the page for agents, this one lit. */
-function Readers() {
-  const pages = [
-    { href: "/", label: "Human" },
-    { href: "/agent", label: "Agent" },
-  ];
-  return (
-    <nav aria-label="Reader" className="flex gap-4 text-sm">
-      {pages.map(({ href, label }) => {
-        const here = href === "/";
-        return (
-          <Link
-            key={href}
-            href={href}
-            aria-current={here ? "page" : undefined}
-            className={`transition-colors ${here ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            {label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
+/** Desktop, where the chat sits beside the cards and scrolling writes the turn; smaller screens just show it. */
+const WIDE = "(min-width: 64rem)";
+const isWide = () => matchMedia(WIDE).matches;
+const onWideChange = (cb: () => void) => {
+  const mq = matchMedia(WIDE);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+};
 
 const VIEWS = [
   { id: "list", label: "List" },
@@ -367,20 +309,21 @@ const toc = [
  * on the right stay put while the orbs scroll between them; the guide follows below. Whichever card
  * sits across the middle of the screen is picked, and the chat's live line shows it.
  */
-export function Orbs({ repo, stars }: { repo: string; stars: number | null }) {
+export function Orbs({ stars }: { stars: number | null }) {
   const [mode, setMode] = useState<"dark" | "light">("dark");
   const [picked, setPicked] = useState(orbs[0]);
   const [view, setView] = useState<"list" | "grid">("list");
   const [lang, setLang] = useState<"react" | "js">("react");
   const [via, setVia] = useState<(typeof INSTALLS)[number]["id"]>("npm");
   const [active, setActive] = useState(toc[0].id);
+  const wide = useSyncExternalStore(onWideChange, isWide, () => true);
   // A click scrolls its card to the middle; until that lands, the cards it passes shouldn't pick themselves.
   const clicked = useRef(0);
 
   useEffect(() => {
     const onScroll = () => {
       const line = pickLine();
-      if (performance.now() > clicked.current) {
+      if (isWide() && performance.now() > clicked.current) {
         const card = [...document.querySelectorAll<HTMLElement>("[data-orb]")].find((el) => {
           const r = el.getBoundingClientRect();
           return r.top <= line && r.bottom >= line;
@@ -402,7 +345,7 @@ export function Orbs({ repo, stars }: { repo: string; stars: number | null }) {
   };
 
   const layout = (
-    <div role="radiogroup" aria-label="Layout" className="mb-4 flex gap-4 text-sm">
+    <div role="radiogroup" aria-label="Layout" className="mb-4 hidden gap-4 text-sm lg:flex">
       {VIEWS.map(({ id, label }) => (
         <button
           key={id}
@@ -421,11 +364,10 @@ export function Orbs({ repo, stars }: { repo: string; stars: number | null }) {
   return (
     <div
       data-mode={mode}
-      className={`pg flex flex-1 flex-col gap-12 px-4 py-12 sm:px-8 lg:grid lg:grid-cols-[20rem_minmax(0,1fr)] lg:items-start lg:gap-x-16 lg:gap-y-0 lg:py-0 ${mode === "dark" ? "bg-black" : "bg-page"}`}
+      className={`pg relative flex flex-1 flex-col gap-12 px-4 py-12 sm:px-8 lg:grid lg:grid-cols-[20rem_minmax(0,1fr)] lg:items-start lg:gap-x-16 lg:gap-y-0 lg:py-0 ${mode === "dark" ? "bg-black" : "bg-page"}`}
     >
       <header className="flex flex-col justify-between gap-12 lg:sticky lg:top-0 lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:h-screen lg:py-12">
         <div className="flex flex-col gap-4">
-          <Readers />
           <div className="flex flex-col gap-2">
             <h1 className="text-[28px] leading-[1.1] font-medium tracking-[-0.03em]">
               Thinking Orbs
@@ -438,8 +380,9 @@ export function Orbs({ repo, stars }: { repo: string; stars: number | null }) {
           <Install />
           <Credit />
         </div>
-        <div className="flex flex-col gap-8">
-          <nav aria-label="Contents" className="hidden lg:block">
+        {/* Wide screens only; small ones get the links in a footer below the guide. */}
+        <div className="hidden flex-col gap-8 lg:flex">
+          <nav aria-label="Contents">
             <ul className="flex flex-col gap-2 text-sm">
               {toc.map(({ id, label }) => (
                 <li key={id}>
@@ -454,24 +397,14 @@ export function Orbs({ repo, stars }: { repo: string; stars: number | null }) {
               ))}
             </ul>
           </nav>
-          <p className="flex flex-wrap items-baseline gap-x-3 text-sm text-muted-foreground">
-            <a href="https://www.patreon.com/c/yogesharc" className={UNDERLINE}>
-              Sponsor
-            </a>
-            <a href="https://x.com/yogesharc" className={UNDERLINE}>
-              X
-            </a>
-            <a href={`https://github.com/${repo}`} className={UNDERLINE}>
-              GitHub
-            </a>
-            <span>MIT License</span>
-          </p>
+          <Links />
         </div>
       </header>
 
-      <div className="fixed top-12 right-4 z-10 flex items-center gap-4 text-sm sm:right-8">
+      {/* Pinned on wide screens; on small ones it sits at the top and scrolls away. */}
+      <div className="absolute top-12 right-4 z-10 flex items-center gap-4 text-sm sm:right-8 lg:fixed">
         <a
-          href={`https://github.com/${repo}`}
+          href={`https://github.com/${REPO}`}
           aria-label={stars === null ? "GitHub" : `Star on GitHub, ${stars} stars`}
           className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
         >
@@ -498,7 +431,7 @@ export function Orbs({ repo, stars }: { repo: string; stars: number | null }) {
         <div className="flex flex-col gap-12 lg:col-start-2 lg:row-start-1 lg:grid lg:grid-cols-[21rem_minmax(0,1fr)] lg:items-start lg:gap-x-16">
           <aside aria-label="The picked orb in a chat" className="flex items-center lg:sticky lg:top-0 lg:col-start-2 lg:row-start-1 lg:h-screen lg:items-start lg:pt-[30vh] lg:pb-12">
             <ChatMock
-              rows={[...SEED, ...orbs.slice(0, orbs.indexOf(picked)).flatMap((o) => (o.done ? [o.done] : []))]}
+              rows={wide ? [...SEED, ...orbs.slice(0, orbs.indexOf(picked)).flatMap((o) => (o.done ? [o.done] : []))] : SEED}
               live={picked.slug.startsWith("background") ? undefined : picked}
               tasks={
                 orbs.indexOf(picked) <= orbs.findIndex((o) => o.slug === "compacting-fuse")
@@ -516,7 +449,7 @@ export function Orbs({ repo, stars }: { repo: string; stars: number | null }) {
         </div>
       )}
 
-      <div className="max-w-xl min-w-0 pb-24 lg:col-start-2 lg:row-start-2">
+      <div className="max-w-xl min-w-0 lg:pb-24 lg:col-start-2 lg:row-start-2">
         <Guide id="installation" title="Installation">
           <p>Add it to any project. The React orb needs nothing but React, and the plain JS one needs nothing at all.</p>
           <div className="flex flex-col gap-2">
@@ -551,7 +484,7 @@ export function Orbs({ repo, stars }: { repo: string; stars: number | null }) {
               </tr>
             </thead>
             <tbody>
-              {props.filter((p) => lang === "react" || (p.name !== "paused" && p.name !== "className")).map((p) => (
+              {props.filter((p) => lang === "react" || !p.react).map((p) => (
                 <tr key={p.name} className="border-b border-foreground/10 align-top">
                   <td className="py-2 pr-4 font-mono text-foreground">{p.name}</td>
                   <td className="py-2 pr-4 font-mono">{p.type}</td>
@@ -563,6 +496,10 @@ export function Orbs({ repo, stars }: { repo: string; stars: number | null }) {
           </table>
         </Guide>
       </div>
+
+      <footer className="lg:hidden">
+        <Links />
+      </footer>
     </div>
   );
 }
