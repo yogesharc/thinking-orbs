@@ -302,6 +302,61 @@ const toc = [
   { id: "usage", label: "Usage" },
 ];
 
+/** Installation and Usage: which package manager and which language to show are theirs alone. */
+function Docs() {
+  const [via, setVia] = useState<(typeof INSTALLS)[number]["id"]>("npm");
+  const [lang, setLang] = useState<"react" | "js">("react");
+  return (
+    <div className="max-w-xl min-w-0 lg:pb-24 lg:col-start-2 lg:row-start-2">
+      <Guide id="installation" title="Installation">
+        <p>Add it to any project. The React orb needs nothing but React, and the plain JS one needs nothing at all.</p>
+        <div className="flex flex-col gap-2">
+          <Tabs label="Install with" value={via} options={INSTALLS} onChange={setVia} />
+          <Install command={INSTALLS.find((o) => o.id === via)?.command ?? COMMAND} />
+        </div>
+        {via === "shadcn" && (
+          <p>
+            That copies the React source into <code className="font-mono text-foreground">components/</code>, yours to change,
+            so import it from <code className="font-mono text-foreground">@/components/orb</code>.
+          </p>
+        )}
+      </Guide>
+
+      <Guide id="usage" title="Usage">
+        <p>{lang === "react" ? "Import it and give it a state." : "Point it at any <svg> on the page and give it a state."}</p>
+        <div className="flex flex-col gap-2">
+          <Tabs label="Language" value={lang} options={LANGS} onChange={setLang} />
+          <Code>{lang === "react" ? USAGE : VANILLA}</Code>
+        </div>
+        <div className="mt-4 flex items-baseline gap-2">
+          <h3 className="font-medium text-foreground">{lang === "react" ? "Props" : "Options"}</h3>
+          <span>All optional</span>
+        </div>
+        <table className="w-full text-left">
+          <thead className="text-muted-foreground">
+            <tr className="border-b border-foreground/10">
+              <th className="py-2 pr-4 font-normal">Prop</th>
+              <th className="py-2 pr-4 font-normal">Type</th>
+              <th className="py-2 pr-4 font-normal">Default</th>
+              <th className="py-2 font-normal">Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {props.filter((p) => lang === "react" || !p.react).map((p) => (
+              <tr key={p.name} className="border-b border-foreground/10 align-top">
+                <td className="py-2 pr-4 font-mono text-foreground">{p.name}</td>
+                <td className="py-2 pr-4 font-mono">{p.type}</td>
+                <td className="py-2 pr-4 font-mono">{p.fallback}</td>
+                <td className="py-2">{p.note}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Guide>
+    </div>
+  );
+}
+
 /**
  * The landing page, three columns on wide screens: the pitch and contents on the left and the chat
  * on the right stay put while the orbs scroll between them; the guide follows below. Whichever card
@@ -311,8 +366,6 @@ export function Orbs({ stars }: { stars: number | null }) {
   const [mode, setMode] = useState<"dark" | "light">("dark");
   const [picked, setPicked] = useState(orbs[0]);
   const [view, setView] = useState<"list" | "grid">("list");
-  const [lang, setLang] = useState<"react" | "js">("react");
-  const [via, setVia] = useState<(typeof INSTALLS)[number]["id"]>("npm");
   const [active, setActive] = useState(toc[0].id);
   const wide = useSyncExternalStore(onWideChange, isWide, () => true);
   // A click scrolls its card to the middle; until that lands, the cards it passes shouldn't pick themselves.
@@ -437,53 +490,7 @@ export function Orbs({ stars }: { stars: number | null }) {
         </section>
       </div>
 
-      <div className="max-w-xl min-w-0 lg:pb-24 lg:col-start-2 lg:row-start-2">
-        <Guide id="installation" title="Installation">
-          <p>Add it to any project. The React orb needs nothing but React, and the plain JS one needs nothing at all.</p>
-          <div className="flex flex-col gap-2">
-            <Tabs label="Install with" value={via} options={INSTALLS} onChange={setVia} />
-            <Install command={INSTALLS.find((o) => o.id === via)!.command} />
-          </div>
-          {via === "shadcn" && (
-            <p>
-              That copies the React source into <code className="font-mono text-foreground">components/</code>, yours to change,
-              so import it from <code className="font-mono text-foreground">@/components/orb</code>.
-            </p>
-          )}
-        </Guide>
-
-        <Guide id="usage" title="Usage">
-          <p>{lang === "react" ? "Import it and give it a state." : "Point it at any <svg> on the page and give it a state."}</p>
-          <div className="flex flex-col gap-2">
-            <Tabs label="Language" value={lang} options={LANGS} onChange={setLang} />
-            <Code>{lang === "react" ? USAGE : VANILLA}</Code>
-          </div>
-          <div className="mt-4 flex items-baseline gap-2">
-            <h3 className="font-medium text-foreground">{lang === "react" ? "Props" : "Options"}</h3>
-            <span>All optional</span>
-          </div>
-          <table className="w-full text-left">
-            <thead className="text-muted-foreground">
-              <tr className="border-b border-foreground/10">
-                <th className="py-2 pr-4 font-normal">Prop</th>
-                <th className="py-2 pr-4 font-normal">Type</th>
-                <th className="py-2 pr-4 font-normal">Default</th>
-                <th className="py-2 font-normal">Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              {props.filter((p) => lang === "react" || !p.react).map((p) => (
-                <tr key={p.name} className="border-b border-foreground/10 align-top">
-                  <td className="py-2 pr-4 font-mono text-foreground">{p.name}</td>
-                  <td className="py-2 pr-4 font-mono">{p.type}</td>
-                  <td className="py-2 pr-4 font-mono">{p.fallback}</td>
-                  <td className="py-2">{p.note}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Guide>
-      </div>
+      <Docs />
 
       <footer className="lg:hidden">
         <Links />
