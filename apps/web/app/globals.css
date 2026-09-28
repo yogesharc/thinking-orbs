@@ -1,5 +1,10 @@
 @import "tailwindcss";
-@import "../prototype/theme.css";
+
+/* The homepage's page and muted colours; `.pg` re-declares them for its light and dark. */
+@theme {
+  --color-page: oklch(0.24 0 0);
+  --color-muted-foreground: oklch(0.708 0 0);
+}
 
 :root {
   --background: #ffffff;
