@@ -37,7 +37,7 @@ function tick(look: string, now: number) {
 }
 
 /** `latlong` is set aside for now: nothing draws it, but it's kept to come back to. */
-export type SphereKind = "base" | "noise" | "sparse" | "rings" | "meridians" | "band" | "latlong" | "rows";
+export type SphereKind = "base" | "noise" | "sparse" | "rings" | "meridians" | "spiral" | "spiral-reversed" | "band" | "latlong" | "rows";
 /** What the sphere is doing on top of its spin. Grows one state at a time. */
 export type SphereState =
   | "base-steps"
@@ -48,6 +48,10 @@ export type SphereState =
   | "working-wave-easein"
   | "wave-across"
   | "wave-spiral"
+  | "searching-wave"
+  | "searching-wave-wide"
+  | "searching-wave-trail"
+  | "searching-wave-lighthouse"
   | "working-spin"
   | "working-beat"
   | "working-tick"
@@ -71,6 +75,17 @@ export type SphereState =
   | "reasoning-inhale"
   | "searching"
   | "subagent"
+  | "subagent-light"
+  | "subagent-voice"
+  | "subagent-steady"
+  | "subagent-moon"
+  | "subagent-patch"
+  | "subagent-patch-fast"
+  | "subagent-patch-with"
+  | "subagent-patch-descend"
+  | "subagent-patch-descend-fast"
+  | "subagent-lanes"
+  | "subagent-bud"
   | "listening-wobble"
   | "background"
   | "background-behind"
@@ -80,6 +95,7 @@ export type SphereState =
   | "background-trail"
   | "background-top"
   | "background-calm"
+  | "background-panels"
   | "background-rim"
   | "compacting-wind"
   | "compacting-wind-pinch"
@@ -210,6 +226,7 @@ function nlerp(a: number[], b: number[], e: number) {
   const v = a.map((ai, j) => ai + (b[j] - ai) * e), n = Math.hypot(v[0], v[1], v[2]) || 1;
   return v.map((vi) => vi / n);
 }
+const unit = (v: number[]) => nlerp(v, v, 0);
 
 /** Compacting: the ends turn up to this far (rad) against the middle, opposite ways, like wringing. */
 const TWIST = 1.4;
@@ -221,6 +238,10 @@ const RING_AXIS = (() => {
   const tip = (30 * Math.PI) / 180, roll = (10 * Math.PI) / 180;
   return [-Math.sin(roll) * Math.cos(tip), Math.cos(roll) * Math.cos(tip), Math.sin(tip)];
 })();
+/** Searching · Wave's lean: its band's top tips this far (rad) right, a "/" like Working · Wave's ring. */
+const LEAN = (30 * Math.PI) / 180;
+/** How far (rad) Searching's trail reaches behind its beam before it's fully out, so the rest of the sphere rests dim. */
+const TRAIL = Math.PI / 2;
 /**
  * Twist amount over time, −1…1. Wind: tightens over 1.44s, holds 0.3s, then springs back
  * loose with a small overshoot, every 2.4s. Wring: swings one way then the other every 2.6s.
@@ -241,8 +262,17 @@ function twist(state: SphereState, t: number) {
  */
 function periodOf(state: SphereState | undefined, duration: number) {
   if (state === "working-spin") return duration / 2;
-  if (state === "working-wave-pull" || state === "working-wave-tilt" || state === "working-wring") return 3000;
+  // The orbits tried for Retrying turn three times as fast as Subagent's.
+  if (state === "subagent-patch-fast" || state === "subagent-patch-descend-fast") return 1000;
+  if (state === "subagent-steady") return 6000;
+  // Orbit descend is Waiting's now, so it keeps Background's calm half speed.
+  if (state === "subagent-patch-descend") return duration * 2;
+  // Subagents do real work too, so the new ones keep Working's 3s turn.
+  if (state === "working-wave-pull" || state === "working-wave-tilt" || state === "working-wring" || state?.startsWith("subagent-"))
+    return 3000;
   if (state === "working-wave-easein" || state === "working-wave-steady") return 4500;
+  // Every Compacting orb turns at 10s, a little quicker than the half speed other states keep.
+  if (state?.startsWith("compacting")) return 10000;
   if (state && !state.startsWith("wave") && !state.startsWith("working") && !state.startsWith("reasoning"))
     return duration * (QUARTER.includes(state) ? 4 : 2);
   return duration;
@@ -271,6 +301,8 @@ const QUARTER: (SphereState | undefined)[] = [
 /** Background states drawn at half strength. */
 const DIM: (SphereState | undefined)[] = ["background", "background-breath", "background-lanes"];
 
+/** Subagent · Bud: where the bud leaves from (view space), the cap it takes (rad), and the bud's radius and distance out. */
+const BUD = unit([0.85, 0.3, 0.45]), CAP = 0.74, BUD_R = 0.36, BUD_OUT = 1.5;
 /** Background lanes' speeds, relative to the spin, bottom band to top. */
 const LANES = [0.7, 1, 1.35];
 /** Background trail: ghosts per dot, and the angle between them (rad). Five 0.1s make a ~29° tail. */
@@ -347,10 +379,29 @@ function distribute(kind: SphereKind, size: number, count: number, step: number)
     }
     case "meridians": {
       // Eight lines of longitude, pole to pole but stopping short so the poles don't clot.
-      const lim = (80 * Math.PI) / 180, n = Math.round((2 * lim) / step) + 1;
+      // Dots sit as far apart as Base's do, so the lines read as dots at any size, not strokes.
+      const gap = Math.sqrt((4 * Math.PI) / count);
+      const lim = (80 * Math.PI) / 180, n = Math.round((2 * lim) / gap) + 1;
       return Array.from({ length: 8 }, (_, m) =>
         Array.from({ length: n }, (_, j) => at(-lim + (2 * lim * j) / (n - 1), (m / 8) * TAU)),
       ).flat();
+    }
+    case "spiral":
+    case "spiral-reversed": {
+      // Arms wound pole to pole, turning a radian of longitude per radian of latitude. Dots sit closer
+      // than Base's along each arm, and eight arms at any size keep wide gaps between them. Toward the
+      // poles every other arm stops where they'd crowd, then every other of those, so the caps
+      // fill without clotting. Reversed winds the other way, so its arms curve as a mirrored S.
+      const g = Math.sqrt((4 * Math.PI) / count), arms = 8, along = 0.6 * g, turn = kind === "spiral" ? 1 : -1;
+      return Array.from({ length: arms }, (_, m) => {
+        const room = m ? m & -m : arms;
+        const lim = Math.min((85 * Math.PI) / 180, Math.acos(Math.min(1, (g * arms) / (TAU * room))));
+        const out: number[][] = [];
+        // Start each arm at its own offset so the dots don't line up into rings across arms.
+        for (let lat = -lim + ((m * 0.618) % 1) * along; lat <= lim; lat += along / Math.sqrt(1 + Math.cos(lat) ** 2))
+          out.push(at(lat, (m / arms) * TAU + turn * lat));
+        return out;
+      }).flat();
     }
     case "band": {
       // A belt ±20° around the equator at Base's density: the band is sin(20°) ≈ 34% of the surface.
@@ -533,6 +584,18 @@ export function Sphere({
     // Fetching · Lines: each dot's row, top row first (on the rows distribution, every row is one latitude).
     const ys = state === "fetching-lines" ? [...new Set(pts.map((p) => p[1].toFixed(3)))].sort((a, b) => +b - +a) : [];
     const rowOf = pts.map((p) => ys.indexOf(p[1].toFixed(3)));
+    // Subagent · Moon: a small sphere of its own dots, drawn over the main one.
+    const moonN = Math.max(10, Math.round(pts.length * 0.12));
+    const moon = state === "subagent-moon" ? Array.from({ length: moonN }, circle) : [];
+    // Subagent · Bud: a cap of dots around BUD (view space, right and a little up and toward you)
+    // peels off into a small sphere. The cycle is one turn, so the spin is at yaw 0 as each one
+    // starts, and the cap's own frame in the sphere's terms is BUD's frame tipped back by the tilt.
+    const bud = state === "subagent-bud";
+    const tip = (tilt * Math.PI) / 180, toObj = ([x, y, z]: number[]) => [x, y * Math.cos(tip) + z * Math.sin(tip), -y * Math.sin(tip) + z * Math.cos(tip)];
+    const U = unit([0, 1, 0].map((v, k) => v - BUD[k] * BUD[1]));
+    const W = [BUD[1] * U[2] - BUD[2] * U[1], BUD[2] * U[0] - BUD[0] * U[2], BUD[0] * U[1] - BUD[1] * U[0]];
+    const [O, Uo, Wo] = [BUD, U, W].map(toObj);
+    const dotp = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 
     const draw = (t: number) => {
       // States spin at half speed, so what they do on top reads first; the first background
@@ -578,8 +641,9 @@ export function Sphere({
       const lanes =
         state === "background-lanes"
           ? LANES.map((k) => [Math.sin(yaw * k), Math.cos(yaw * k)])
-          : state === "reasoning-layers"
-            ? [0.5, 1.5].map((k) => [Math.sin(yaw * k), Math.cos(yaw * k)])
+          : state === "reasoning-layers" || state === "subagent-lanes"
+            ? // Subagent · Lanes turns its halves opposite ways at full speed: two jobs at once.
+              (state === "subagent-lanes" ? [-1, 1] : [0.5, 1.5]).map((k) => [Math.sin(yaw * k), Math.cos(yaw * k)])
             : null;
       // How far a dot faces you right now (spin and tilt only), which Connect's walk and Inflow steer by.
       const facing = (k: number) => pts[k][1] * st + (-pts[k][0] * sy + pts[k][2] * cy) * ct;
@@ -664,7 +728,35 @@ export function Sphere({
             ? 1 - 0.18 * backoff(t)
             : state === "working-beat"
               ? 1 + 0.12 * beat(t)
-              : 1;
+              : // Moon and Bud shrink the main sphere to leave room in the box for what splits off.
+                state === "subagent-moon"
+                ? 0.66
+                : bud
+                  ? 0.74
+                  : 1;
+      // Bud's cycle is one turn: peels off over 0.7s, spins on its own for 1.6s, merges back over 0.7s.
+      const bu = t % 3000, be = !bud ? 0 : bu < 700 ? ease(bu / 700) : bu < 2300 ? 1 : 1 - ease((bu - 2300) / 700);
+      const bs = Math.sin((bu / 3000) * TAU * 1.5), bc = Math.cos((bu / 3000) * TAU * 1.5);
+      // Orbit: a lit head runs round the equator a lap every 1.5s on screen, half a turn (2s for
+      // Waiting's descend, 0.5s for the Retrying tries), whatever the spin does. `ahead` is how fast it moves over the sphere's own surface, in rad/ms.
+      const lap =
+        state === "subagent-patch-fast" || state === "subagent-patch-descend-fast"
+          ? 500
+          : state === "subagent-patch" || state === "subagent-patch-with"
+            ? 1500
+            : 2000;
+      // With runs the same way as the spin, like the Moon round the Earth; the rest run against it.
+      // Either way `ahead` can come out negative, and the tail trails whichever way it goes.
+      const dir = state === "subagent-patch-with" ? -1 : 1;
+      const head = dir * (t / lap) * TAU + yaw, ahead = (dir * TAU) / lap + TAU / period;
+      // Descend spirals the head from 70° north to 70° south every 6s, fading in and out at the ends
+      // so the jump back to the top doesn't show. The tail follows where the head was.
+      const descend = state === "subagent-patch-descend" || state === "subagent-patch-descend-fast";
+      const headLat = (tt: number) => (descend ? ((70 * Math.PI) / 180) * (1 - 2 * ((tt % 6000) / 6000)) : 0);
+      // The fade only takes the first and last ~10% of the descent; in between it's at full.
+      const glow = descend ? Math.min(1, 3 * Math.sin(Math.PI * ((t % 6000) / 6000))) : 1;
+      // Subagent's and Waiting's comets burn brighter and bigger, so they read at a glance.
+      const bright = state === "subagent-patch" || state === "subagent-patch-descend";
       // The lens lives in view space, so it searches the face you see while the sphere turns under it.
       const lens = state === "searching" ? lensAt(t) : null;
       // Gyro + wring wrings at half Compacting's twist, so it stays calm enough for reasoning.
@@ -695,6 +787,7 @@ export function Sphere({
       } else if (state?.startsWith("compacting-sweep") || scan) {
         // Crosses over 2s, then everything lets go over 0.8s. Deep springs back past loose:
         // swells 25% of its squeeze the other way over ~380ms, snaps back in ~210ms, then rests.
+        // Fuse burns out like a firework instead, so it just eases back with no bounce.
         const u = (t % 2800) / 2800, s = (u - 0.7) / 0.3;
         const release =
           state !== "compacting-sweep-deep"
@@ -785,11 +878,20 @@ export function Sphere({
         }
         // Listening deforms the surface: each dot moves along its own radius by `disp`.
         let disp = 0;
-        if (state === "subagent") {
+        if (state === "subagent" || state === "subagent-light") {
           // Rings travel from the point facing you (u=0) to the rim (u=1) in about a second,
           // each carrying the voice level from when it left, so bursts ride outward.
           const u = Math.acos(Math.max(-1, Math.min(1, vz))) / (Math.PI / 2);
           disp = 0.1 * (0.15 + 0.85 * voice(t - u * 1000)) * Math.sin(u * 12 - t * 0.012);
+        } else if (state === "subagent-steady") {
+          // The same rings with no voice: every one leaves at full strength, an even, busy beat.
+          // The middle stays still, so each ring appears already a quarter of the way out. Rings take
+          // 3s to reach the rim, a third of the ripple's pace.
+          const u = Math.acos(Math.max(-1, Math.min(1, vz))) / (Math.PI / 2);
+          disp = 0.1 * ease(Math.min(1, Math.max(0, (u - 0.1) / 0.2))) * Math.sin(u * 12 - t * 0.004);
+        } else if (state === "subagent-voice") {
+          // No rings: the whole sphere swells, grows and brightens with the voice at once.
+          disp = 0.1 * (0.15 + 0.85 * voice(t)) - 0.05;
         } else if (state === "listening-wobble") {
           // Two slow waves crossing the surface; the voice swells them, a floor keeps it breathing in pauses.
           const n = Math.sin(2.1 * vx + 1.3 * vy + t * 0.0021) * Math.sin(1.7 * vy - 1.1 * vz + t * 0.0017 + 1);
@@ -798,8 +900,11 @@ export function Sphere({
         }
         if (disp) {
           // Straight toward you is invisible in this projection, so crests also grow and brighten, troughs shrink and dim.
-          vx *= 1 + disp;
-          vy *= 1 + disp;
+          // Light keeps only that: the dots stay put, and the rings are just light passing over them.
+          if (state !== "subagent-light") {
+            vx *= 1 + disp;
+            vy *= 1 + disp;
+          }
           r *= 1 + 3 * disp;
           a = Math.min(1, a * (1 + 3 * disp));
         }
@@ -836,7 +941,11 @@ export function Sphere({
           if (state === "compacting-sweep-dim" || state === "compacting-sweep-edge-dim") a *= 1 - 0.5 * w;
           if (state?.startsWith("compacting-sweep-edge") || scan) {
             // The line itself: dots right at it grow and light up, like a scanner beam.
-            const g = Math.exp(-(((q - sweep.at) / 0.08) ** 2)) * sweep.hold;
+            // Fuse keeps its line to the near half, fading it out behind, so it reads as one burning
+            // line on the face rather than a ring through the globe with a second line behind.
+            const depth = state === "compacting-sweep-edge-dim" ? Math.min(1, d / 0.5) : 1;
+            // The spring's overshoot takes hold below zero; the line itself just goes out.
+            const g = Math.exp(-(((q - sweep.at) / 0.08) ** 2)) * Math.max(0, sweep.hold) * depth;
             r *= 1 + 0.8 * g;
             a += (1 - a) * g;
           }
@@ -886,6 +995,26 @@ export function Sphere({
             r *= 1 - 0.15 * w;
           }
         }
+        if (state?.startsWith("searching-wave")) {
+          // A band of light circles the axis, a lap every 2s, crossing the face left to right. It
+          // shows full on the near half and at a quarter behind, so you can follow it round the back.
+          // The rest sits at 50%, like Reasoning, so the band stands out.
+          a *= 0.5;
+          // Wide softens the beam's edge; Trail leaves a glow that fades evenly and dies out 90° behind it; Lighthouse does both.
+          // It circles the sphere's axis rolled 30° to the right on screen, so the band leans like Working · Wave's.
+          const lr = Math.sin(LEAN), lc = Math.cos(LEAN);
+          const across = vx * lc - vy * lr, toward = -st * (vx * lr + vy * lc) + ct * vz;
+          // Lighthouse sweeps a slower 2.5s lap.
+          const lap = (t / (state === "searching-wave-lighthouse" ? 2500 : 2000)) % 1;
+          const off = Math.atan2(across, toward) - (lap * TAU - Math.PI);
+          const dphi = ((((off + Math.PI) % TAU) + TAU) % TAU) - Math.PI;
+          const wide = state === "searching-wave-wide" || state === "searching-wave-lighthouse";
+          const trail = state === "searching-wave-trail" || state === "searching-wave-lighthouse";
+          const beam = dphi < 0 && trail ? Math.max(0, 1 + dphi / TRAIL) : Math.exp(-((dphi / (wide ? 0.45 : 0.35)) ** 2));
+          const g = beam * (0.25 + 0.75 * Math.min(1, Math.max(0, (d - 0.4) / 0.3)));
+          r *= 1 + 0.6 * g;
+          a += (1 - a) * g;
+        }
         // Sparks: each dot flashes for 0.4s once every 8s at its own moment, so ~5% glow at a time.
         // Connect lights the walk's tail. Either reaches round the back, like the wave did.
         let spark = 0;
@@ -923,6 +1052,36 @@ export function Sphere({
           const full = Math.min(1, Math.max(0, (level - vy) / 0.12)) * (u < 1900 ? 1 : 1 - (u - 1900) / 300);
           a *= 0.3 + 0.7 * full;
         }
+        // Panels: a beach ball in light on the Fibonacci sphere. Eight slices of longitude turn with
+        // it, every other one dimmed to 30%.
+        if (state === "background-panels" && Math.floor(((Math.atan2(p0[2], p0[0]) + Math.PI) / TAU) * 8) % 2) a *= 0.3;
+        if (state?.startsWith("subagent-patch")) {
+          // A comet: a sharp head and a long fading tail, lit round the back too, over a sphere
+          // dimmed to 50%, like the other dimmed states. Its width is measured along the surface,
+          // so it keeps its size away from the equator.
+          const lat = Math.asin(p0[1]), lon = Math.atan2(p0[2], p0[0]);
+          const off = Math.atan2(Math.sin(lon - head), Math.cos(lon - head)), along = off * Math.cos(lat);
+          const g =
+            Math.exp(-(((lat - headLat(t + off / ahead)) / 0.28) ** 2)) * Math.exp(-((along / (off * ahead > 0 ? 0.12 : 1)) ** 2));
+          // Bright lifts the whole curve (g^0.6), so dots near the head and along the tail light fuller.
+          const w = glow * (bright ? g ** 0.6 : g);
+          a = a * 0.5 + (1 - a * 0.5) * w;
+          r *= 1 + (bright ? 1.1 : 0.8) * w;
+        }
+        if (be) {
+          // Bud: cap dots (within CAP of BUD as the cycle starts) spread over a small sphere out past
+          // the rim, the cap's middle facing out and its edge wrapping round the back, turning 1.5×.
+          const cth = dotp(p0, O);
+          if (cth > Math.cos(CAP)) {
+            const th = (Math.acos(Math.min(1, cth)) / CAP) * Math.PI, ps = Math.atan2(dotp(p0, Wo), dotp(p0, Uo));
+            const l = BUD.map((b, k) => Math.cos(th) * b + Math.sin(th) * (Math.cos(ps) * U[k] + Math.sin(ps) * W[k]));
+            const lx = l[0] * bc + l[2] * bs, lz = -l[0] * bs + l[2] * bc, bd = (lz + 1) / 2;
+            vx += (BUD[0] * BUD_OUT + BUD_R * lx - vx) * be;
+            vy += (BUD[1] * BUD_OUT + BUD_R * l[1] - vy) * be;
+            r += ((0.5 + 1.4 * bd) * rs - r) * be;
+            a += (Math.max(0, (bd - 0.3) / 0.7) - a) * be;
+          }
+        }
         // Background work stays out of the way: everything at half strength. Soft keeps full
         // strength and goes quiet through smaller dots instead; Behind's fading front is quiet enough.
         if (soft) r *= 0.7;
@@ -954,6 +1113,20 @@ export function Sphere({
           h.setAttribute("fill-opacity", spark ? spark.toFixed(2) : "0");
         }
       });
+      if (moon.length) {
+        // The moon orbits every 2.4s on a tilted ring, low as it passes in front and high behind,
+        // turning twice as fast as the main sphere. Behind, it fades as it crosses the main disc.
+        const ph = (t / 2400) * TAU, mx = 1.45 * Math.cos(ph), my = -0.3 * Math.sin(ph), mz = Math.sin(ph);
+        const hide = mz < 0 ? Math.min(1, Math.max(0, (Math.hypot(mx, my) - 0.85) / 0.3)) : 1;
+        const ms = Math.sin(2 * yaw), mc = Math.cos(2 * yaw);
+        moon.forEach((m, j) => {
+          const [x, y, z] = fib(j, moonN), lz = -x * ms + z * mc, d = (lz + 1) / 2;
+          m.setAttribute("cx", (c + (mx + 0.26 * (x * mc + z * ms)) * R * breath).toFixed(2));
+          m.setAttribute("cy", (c - (my + 0.26 * y) * R * breath).toFixed(2));
+          m.setAttribute("r", Math.max(0.45, (0.5 + 1.4 * d) * rs).toFixed(2));
+          m.setAttribute("fill-opacity", (Math.max(0, (d - 0.3) / 0.7) * hide).toFixed(2));
+        });
+      }
       // Lines join each tail dot to the next, as bright as the dimmer of the two.
       const walk = walks[0];
       lines.forEach((l, j) => {

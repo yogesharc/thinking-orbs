@@ -15,6 +15,53 @@
   color: var(--foreground);
 }
 
+/* A thin, quiet page scrollbar: a grey pill on no track, readable on either theme. */
+html {
+  /* Contents links glide to their section instead of jumping. */
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.55 0 0 / 0.45) transparent;
+}
+html::-webkit-scrollbar {
+  width: 10px;
+}
+html::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: oklch(0.55 0 0 / 0.45) padding-box;
+}
+
+/* Dray's live label: a band of full-strength text sweeping through muted text, every 2s. */
+.shimmer {
+  display: inline-block;
+  background: linear-gradient(
+      90deg,
+      var(--color-muted-foreground) 35%,
+      var(--foreground) 50%,
+      var(--color-muted-foreground) 65%
+    )
+    0 0 / 200% 100%;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 2s linear infinite;
+}
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .shimmer {
+    animation: none;
+  }
+}
+
 .pg[data-mode="light"] {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);

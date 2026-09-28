@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Thinking Orbs",
+  title: "Thinking Orbs for AI Agents",
   description: "Animated dotted-sphere status orbs for AI agents.",
 };
 
