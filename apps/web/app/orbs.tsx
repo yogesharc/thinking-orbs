@@ -2,9 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Check, Copy, LayoutGrid, Rows3 } from "lucide-react";
 import { ChatMock, type ChatRow } from "@/components/chat-mock";
-import { Segmented, ThemeSwitch } from "@/components/theme-switch";
 import { Orb, type OrbState } from "@/registry/orb/orb";
 
 /**
@@ -50,28 +48,75 @@ const SEED: ChatRow[] = [
 ];
 
 const COMMAND = "npm i thinkingorbs";
-const SHADCN = "npx shadcn@latest add https://thinkingorbs.com/r/orb.json";
 
+/** Handed to a coding agent: how to install and use the orbs, nothing it should go and do. */
+const PROMPT = `Thinking Orbs (https://thinkingorbs.com): animated status orbs for AI agents, one state for each thing an agent does.
+
+Install
+npm i thinkingorbs (or pnpm add, yarn add, bun add thinkingorbs)
+To copy the React source into the project instead: npx shadcn@latest add https://thinkingorbs.com/r/orb.json
+
+React
+import { Orb } from "thinkingorbs";
+<Orb state="reasoning" />
+
+Without React
+import { mountOrb } from "thinkingorbs/vanilla";
+const stop = mountOrb(svgElement, { state: "reasoning" }); // stop() removes it
+
+Props (all optional)
+state: which orb, default "base"
+size: width and height in px, default 20
+speed: speed multiplier, default 1
+paused: freezes the animation, default false (React only)
+label: name for screen readers
+className: tint it with text-* classes (React only)
+
+States
+working, working-wring: busy, running a tool
+reasoning, reasoning-two: thinking
+searching, searching-lighthouse: searching the web or files
+background, background-spiral: background tasks running
+retrying, retrying-ease-out: retrying after an error
+compacting, compacting-wring, compacting-fuse: compacting context
+waiting: waiting for a usage limit to reset
+base: idle or anything else`;
+
+/** The install command, copied on click, beside a button that copies the agent prompt instead. */
 function Install({ command = COMMAND }: { command?: string }) {
-  const [copied, setCopied] = useState(false);
-  const copy = () =>
-    navigator.clipboard.writeText(command).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+  const [copied, setCopied] = useState<"command" | "prompt" | null>(null);
+  const copy = (what: "command" | "prompt") =>
+    navigator.clipboard.writeText(what === "command" ? command : PROMPT).then(() => {
+      setCopied(what);
+      setTimeout(() => setCopied(null), 1500);
     });
 
   return (
-    <button
-      type="button"
-      onClick={copy}
-      className="mt-2 flex w-fit items-center gap-3 rounded-xl whitespace-nowrap bg-foreground/[0.07] py-2.5 pr-3.5 pl-4 font-mono text-[13px] transition-colors hover:bg-foreground/[0.1]"
-    >
-      <span>
-        <span className="text-muted-foreground">$ </span>
-        {command}
-      </span>
-      {copied ? <Check className="size-3.5" aria-label="Copied" /> : <Copy className="size-3.5 text-muted-foreground" aria-label="Copy" />}
-    </button>
+    <div className="flex w-full items-center rounded-xl bg-foreground/[0.07] text-sm text-foreground whitespace-nowrap light:bg-transparent light:ring-1 light:ring-foreground/12">
+      <button
+        type="button"
+        onClick={() => copy("command")}
+        aria-label={`Copy ${command}`}
+        className="min-w-0 flex-1 overflow-x-auto py-2.5 pr-3 pl-4 text-left font-mono [scrollbar-width:none]"
+      >
+        {copied === "command" ? (
+          <span className="text-muted-foreground">Copied</span>
+        ) : (
+          <>
+            <span className="text-muted-foreground">$ </span>
+            {command}
+          </>
+        )}
+      </button>
+      <button
+        type="button"
+        onClick={() => copy("prompt")}
+        aria-label="Copy a prompt for your agent"
+        className="mr-1.5 w-[6.25rem] shrink-0 rounded-lg bg-foreground/[0.1] py-1 text-foreground transition-colors hover:bg-foreground/[0.16]"
+      >
+        {copied === "prompt" ? "Copied" : "Copy prompt"}
+      </button>
+    </div>
   );
 }
 
@@ -87,8 +132,8 @@ function Card({ item }: { item: Item }) {
   );
 }
 
-const CARD = "flex w-full flex-col rounded-2xl bg-foreground/[0.04] transition-shadow hover:shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_30%,transparent)]";
-const RING = "shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_30%,transparent)]";
+const CARD = "flex w-full flex-col rounded-2xl bg-foreground/[0.04] transition-shadow hover:shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_30%,transparent)] light:bg-transparent light:ring-1 light:ring-foreground/12 light:hover:ring-foreground/30";
+const RING = "shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_30%,transparent)] light:ring-foreground/30";
 const EDGE = "shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_8%,transparent)]";
 
 /**
@@ -145,10 +190,22 @@ export function Thinking() {
   );
 }`;
 
+const VANILLA = `import { mountOrb } from "thinkingorbs/vanilla";
+
+// Draws into any <svg> on the page, in its CSS color.
+const orb = mountOrb(document.querySelector("svg"), { state: "reasoning", label: "Thinking" });
+
+orb.pause(); // hold it on its frame
+orb.play(); // carry on
+orb.destroy(); // remove it`;
+
 const props = [
-  { name: "state", type: "OrbState", fallback: `"base"`, note: "Which orb to draw: any name below." },
-  { name: "size", type: "number", fallback: "20", note: "Width and height in px. Every orb is tuned to read at 20." },
-  { name: "className", type: "string", fallback: "", note: "The orb draws in the text color, so text-* classes tint it." },
+  { name: "state", type: "OrbState", fallback: `"base"`, note: "Which orb to draw." },
+  { name: "size", type: "number", fallback: "20", note: "Width and height in px." },
+  { name: "speed", type: "number", fallback: "1", note: "Speed multiplier." },
+  { name: "paused", type: "boolean", fallback: "false", note: "Freezes the animation." },
+  { name: "label", type: "string", fallback: "—", note: "Name for screen readers." },
+  { name: "className", type: "string", fallback: "—", note: "Tint it with text-* classes." },
 ];
 
 /**
@@ -182,7 +239,7 @@ function highlight(src: string) {
 
 function Code({ children }: { children: string }) {
   return (
-    <pre className="overflow-x-auto rounded-2xl bg-foreground/[0.08] p-5 font-mono text-[13px] leading-relaxed text-foreground shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_10%,transparent)]">
+    <pre className="overflow-x-auto rounded-2xl bg-foreground/[0.08] p-5 font-mono text-sm leading-relaxed text-foreground shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_10%,transparent)] light:bg-transparent light:shadow-none light:ring-1 light:ring-foreground/12">
       <code>{highlight(children)}</code>
     </pre>
   );
@@ -192,55 +249,77 @@ function Code({ children }: { children: string }) {
 function Guide({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
     <section id={id} className="mt-24 w-full scroll-mt-12">
-      <h2 className="mb-6 text-base font-medium tracking-[-0.01em]">{title}</h2>
+      <h2 className="mb-1.5 text-base font-medium tracking-[-0.01em]">{title}</h2>
       <div className="flex flex-col gap-5 text-sm leading-relaxed text-muted-foreground">{children}</div>
     </section>
   );
 }
 
-/** X's logo; lucide dropped its brand icons. */
-function XLogo({ className }: { className?: string }) {
+/** Tabs over what they switch: only the open one is filled. */
+function Tabs<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: readonly { id: T; label: string }[];
+  onChange: (id: T) => void;
+}) {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className={className}>
-      <path d="M18.9 1.2h3.7l-8 9.2 9.4 12.4h-7.4l-5.8-7.6-6.6 7.6H.5l8.6-9.8L0 1.2h7.6l5.2 6.9 6.1-6.9Zm-1.3 19.4h2L6.5 3.3H4.3l13.3 17.3Z" />
-    </svg>
+    <div role="tablist" aria-label={label} className="flex flex-wrap gap-1">
+      {options.map(({ id, label }) => (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          aria-selected={value === id}
+          onClick={() => onChange(id)}
+          className={`h-8 rounded-lg px-3 transition-colors ${value === id ? "bg-foreground/[0.08] text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
   );
 }
 
+/** A text link with a soft, offset underline that firms up on hover. */
+const UNDERLINE =
+  "text-muted-foreground underline decoration-foreground/25 decoration-[1.5px] underline-offset-[5px] transition-colors hover:text-foreground hover:decoration-foreground/60";
+
 function Credit() {
   return (
-    <div className="flex flex-col gap-1 text-sm text-muted-foreground">
-      <p>
-        Made by{" "}
-        <a href="https://yogesharc.com" className="text-foreground hover:underline">
-          Yogesh
-        </a>
-      </p>
-      <p className="flex items-center gap-1.5">
-        <a href="https://x.com/yogesharc" className="flex items-center gap-1.5 text-foreground hover:underline">
-          <XLogo className="size-3" />
-          @yogesharc
-        </a>
-        <span aria-hidden>·</span>
-        <a href="https://www.patreon.com/c/yogesharc" className="text-foreground hover:underline">
-          Sponsor
-        </a>
-      </p>
-    </div>
+    <p className="text-sm text-muted-foreground">
+      Built by{" "}
+      <a href="https://yogesharc.com" className={UNDERLINE}>
+        Yogesh
+      </a>
+    </p>
+  );
+}
+
+/** GitHub's mark; lucide dropped its brand icons. */
+function GitHubLogo({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className={className}>
+      <path d="M12 .3a12 12 0 0 0-3.8 23.38c.6.12.83-.26.83-.57L9 21.07c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.08-.74.09-.73.09-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.8 1.3 3.49 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.1-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.64 1.66.24 2.88.12 3.18a4.65 4.65 0 0 1 1.23 3.22c0 4.61-2.8 5.63-5.48 5.92.42.36.81 1.1.81 2.22l-.01 3.29c0 .31.2.69.82.57A12 12 0 0 0 12 .3" />
+    </svg>
   );
 }
 
 /** How far down the viewport a card has to cross to be picked: a third of the way, so the first card starts picked. */
 const pickLine = () => innerHeight * 0.35;
 
-/** The page for people and the page for agents: two links styled as a switch, this one lit. */
+/** The page for people and the page for agents, this one lit. */
 function Readers() {
   const pages = [
     { href: "/", label: "Human" },
     { href: "/agent", label: "Agent" },
   ];
   return (
-    <nav aria-label="Reader" className="flex rounded-full bg-foreground/[0.07] p-0.5 text-sm">
+    <nav aria-label="Reader" className="flex gap-4 text-sm">
       {pages.map(({ href, label }) => {
         const here = href === "/";
         return (
@@ -248,7 +327,7 @@ function Readers() {
             key={href}
             href={href}
             aria-current={here ? "page" : undefined}
-            className={`flex h-7 items-center rounded-full px-3 transition-colors ${here ? "bg-(--knob) text-foreground shadow-[0_1px_3px_rgb(0_0_0/0.2),0_0_0_0.5px_rgb(0_0_0/0.06)]" : "text-muted-foreground hover:text-foreground"}`}
+            className={`transition-colors ${here ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
           >
             {label}
           </Link>
@@ -259,8 +338,22 @@ function Readers() {
 }
 
 const VIEWS = [
-  { id: "list", label: "List with chat", Icon: Rows3 },
-  { id: "grid", label: "Grid", Icon: LayoutGrid },
+  { id: "list", label: "List" },
+  { id: "grid", label: "Grid" },
+] as const;
+
+/** Ways to install: the package from each package manager, or shadcn to copy the React source in. */
+const INSTALLS = [
+  { id: "npm", label: "npm", command: COMMAND },
+  { id: "pnpm", label: "pnpm", command: "pnpm add thinkingorbs" },
+  { id: "yarn", label: "yarn", command: "yarn add thinkingorbs" },
+  { id: "bun", label: "bun", command: "bun add thinkingorbs" },
+  { id: "shadcn", label: "shadcn", command: "npx shadcn@latest add https://thinkingorbs.com/r/orb.json" },
+] as const;
+
+const LANGS = [
+  { id: "react", label: "React" },
+  { id: "js", label: "JS" },
 ] as const;
 
 const toc = [
@@ -274,10 +367,12 @@ const toc = [
  * on the right stay put while the orbs scroll between them; the guide follows below. Whichever card
  * sits across the middle of the screen is picked, and the chat's live line shows it.
  */
-export function Orbs() {
+export function Orbs({ repo, stars }: { repo: string; stars: number | null }) {
   const [mode, setMode] = useState<"dark" | "light">("dark");
   const [picked, setPicked] = useState(orbs[0]);
   const [view, setView] = useState<"list" | "grid">("list");
+  const [lang, setLang] = useState<"react" | "js">("react");
+  const [via, setVia] = useState<(typeof INSTALLS)[number]["id"]>("npm");
   const [active, setActive] = useState(toc[0].id);
   // A click scrolls its card to the middle; until that lands, the cards it passes shouldn't pick themselves.
   const clicked = useRef(0);
@@ -306,6 +401,23 @@ export function Orbs() {
     setPicked(item);
   };
 
+  const layout = (
+    <div role="radiogroup" aria-label="Layout" className="mb-4 flex gap-4 text-sm">
+      {VIEWS.map(({ id, label }) => (
+        <button
+          key={id}
+          type="button"
+          role="radio"
+          aria-checked={view === id}
+          onClick={() => setView(id)}
+          className={`transition-colors ${view === id ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div
       data-mode={mode}
@@ -313,19 +425,21 @@ export function Orbs() {
     >
       <header className="flex flex-col justify-between gap-12 lg:sticky lg:top-0 lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:h-screen lg:py-12">
         <div className="flex flex-col gap-4">
-          <h1 className="text-3xl leading-[1.1] font-medium tracking-[-0.03em] sm:text-4xl">
-            Thinking Orbs
-            <span className="block text-muted-foreground">for AI Agents</span>
-          </h1>
-          <p className="text-lg text-muted-foreground">
-            Animated status orbs, built to read at 20px, the size they actually sit at in a real interface.
-          </p>
-          <Install />
-          <div className="flex flex-wrap gap-2">
-            <Readers />
-            <Segmented label="Layout" value={view} options={VIEWS} onChange={setView} />
+          <Readers />
+          <div className="flex flex-col gap-2">
+            <h1 className="text-[28px] leading-[1.1] font-medium tracking-[-0.03em]">
+              Thinking Orbs
+              <span className="block text-muted-foreground">for AI Agents</span>
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Animated status orbs, built to read at 20px, the size they actually sit at in a real interface.
+            </p>
           </div>
-          <nav aria-label="Contents" className="mt-8 hidden lg:block">
+          <Install />
+          <Credit />
+        </div>
+        <div className="flex flex-col gap-8">
+          <nav aria-label="Contents" className="hidden lg:block">
             <ul className="flex flex-col gap-2 text-sm">
               {toc.map(({ id, label }) => (
                 <li key={id}>
@@ -340,15 +454,43 @@ export function Orbs() {
               ))}
             </ul>
           </nav>
-        </div>
-        <div className="flex flex-col items-start gap-4">
-          <ThemeSwitch mode={mode} onChange={setMode} />
-          <Credit />
+          <p className="flex flex-wrap items-baseline gap-x-3 text-sm text-muted-foreground">
+            <a href="https://www.patreon.com/c/yogesharc" className={UNDERLINE}>
+              Sponsor
+            </a>
+            <a href="https://x.com/yogesharc" className={UNDERLINE}>
+              X
+            </a>
+            <a href={`https://github.com/${repo}`} className={UNDERLINE}>
+              GitHub
+            </a>
+            <span>MIT License</span>
+          </p>
         </div>
       </header>
 
+      <div className="fixed top-12 right-4 z-10 flex items-center gap-4 text-sm sm:right-8">
+        <a
+          href={`https://github.com/${repo}`}
+          aria-label={stars === null ? "GitHub" : `Star on GitHub, ${stars} stars`}
+          className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <GitHubLogo className="size-4" />
+          {stars !== null && <span className="tabular-nums">{Intl.NumberFormat("en", { notation: "compact" }).format(stars)}</span>}
+        </a>
+        <button
+          type="button"
+          aria-label={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          onClick={() => setMode(mode === "dark" ? "light" : "dark")}
+          className={UNDERLINE}
+        >
+          {mode === "dark" ? "Light" : "Dark"}
+        </button>
+      </div>
+
       {view === "grid" ? (
         <section id="orbs" aria-label="Orbs" className="min-w-0 scroll-mt-12 lg:col-start-2 lg:row-start-1 lg:py-12">
+          {layout}
           <OrbGrid />
         </section>
       ) : (
@@ -368,57 +510,57 @@ export function Orbs() {
           </aside>
 
           <section id="orbs" aria-label="Orbs" className="min-w-0 scroll-mt-12 lg:col-start-1 lg:row-start-1 lg:py-12">
+            {layout}
             <OrbList picked={picked} onPick={pick} />
           </section>
         </div>
       )}
 
-      <div className="max-w-2xl min-w-0 pb-24 lg:col-start-2 lg:row-start-2">
+      <div className="max-w-xl min-w-0 pb-24 lg:col-start-2 lg:row-start-2">
         <Guide id="installation" title="Installation">
-          <p>Add it to any React project. It needs nothing but React.</p>
-          <Install />
-          <p>To own the source instead, copy it into your project and change anything you like:</p>
-          <Install command={SHADCN} />
-          <p>
-            That writes it to <code className="font-mono text-[13px] text-foreground">components/orb.tsx</code>, so import it from{" "}
-            <code className="font-mono text-[13px] text-foreground">@/components/orb</code>.
-          </p>
+          <p>Add it to any project. The React orb needs nothing but React, and the plain JS one needs nothing at all.</p>
+          <div className="flex flex-col gap-2">
+            <Tabs label="Install with" value={via} options={INSTALLS} onChange={setVia} />
+            <Install command={INSTALLS.find((o) => o.id === via)!.command} />
+          </div>
+          {via === "shadcn" && (
+            <p>
+              That copies the React source into <code className="font-mono text-foreground">components/</code>, yours to change,
+              so import it from <code className="font-mono text-foreground">@/components/orb</code>.
+            </p>
+          )}
         </Guide>
 
         <Guide id="usage" title="Usage">
-          <p>Import it and give it a state.</p>
-          <Code>{USAGE}</Code>
-          <h3 className="mt-4 text-sm font-medium text-foreground">Props</h3>
-          <table className="w-full text-left text-sm">
+          <p>{lang === "react" ? "Import it and give it a state." : "Point it at any <svg> on the page and give it a state."}</p>
+          <div className="flex flex-col gap-2">
+            <Tabs label="Language" value={lang} options={LANGS} onChange={setLang} />
+            <Code>{lang === "react" ? USAGE : VANILLA}</Code>
+          </div>
+          <div className="mt-4 flex items-baseline gap-2">
+            <h3 className="font-medium text-foreground">{lang === "react" ? "Props" : "Options"}</h3>
+            <span>All optional</span>
+          </div>
+          <table className="w-full text-left">
             <thead className="text-muted-foreground">
               <tr className="border-b border-foreground/10">
                 <th className="py-2 pr-4 font-normal">Prop</th>
                 <th className="py-2 pr-4 font-normal">Type</th>
                 <th className="py-2 pr-4 font-normal">Default</th>
-                <th className="py-2 font-normal">What it does</th>
+                <th className="py-2 font-normal">Description</th>
               </tr>
             </thead>
             <tbody>
-              {props.map((p) => (
+              {props.filter((p) => lang === "react" || (p.name !== "paused" && p.name !== "className")).map((p) => (
                 <tr key={p.name} className="border-b border-foreground/10 align-top">
-                  <td className="py-2 pr-4 font-mono text-[13px] text-foreground">{p.name}</td>
-                  <td className="py-2 pr-4 font-mono text-[13px]">{p.type}</td>
-                  <td className="py-2 pr-4 font-mono text-[13px]">{p.fallback}</td>
+                  <td className="py-2 pr-4 font-mono text-foreground">{p.name}</td>
+                  <td className="py-2 pr-4 font-mono">{p.type}</td>
+                  <td className="py-2 pr-4 font-mono">{p.fallback}</td>
                   <td className="py-2">{p.note}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p>
-            Names:{" "}
-            {grouped.map((item, i) => (
-              <span key={item.slug}>
-                {i > 0 && ", "}
-                <code className="font-mono text-[13px] text-foreground">{item.slug}</code>
-              </span>
-            ))}
-            .
-          </p>
         </Guide>
       </div>
     </div>

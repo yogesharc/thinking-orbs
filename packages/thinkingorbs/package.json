@@ -1,0 +1,48 @@
+{
+  "name": "thinkingorbs",
+  "version": "0.1.0",
+  "description": "Animated dotted-sphere status orbs for AI agents.",
+  "keywords": [
+    "react",
+    "ai",
+    "agent",
+    "status",
+    "loader",
+    "spinner",
+    "orb",
+    "animation"
+  ],
+  "homepage": "https://thinkingorbs.com",
+  "author": "Yogesh (https://yogesharc.com)",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/orb.d.ts",
+      "default": "./dist/orb.js"
+    },
+    "./vanilla": {
+      "types": "./dist/orb-core.d.ts",
+      "default": "./dist/orb-core.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p . && node -e \"for (const f of ['dist/orb.js', 'dist/orb.d.ts']) { const fs = require('fs'); fs.writeFileSync(f, fs.readFileSync(f, 'utf8').replace('\\\"./orb-core\\\"', '\\\"./orb-core.js\\\"')); }\"",
+    "prepublishOnly": "pnpm build"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "typescript": "^5"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  }
+}

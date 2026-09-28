@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-**Thinking Orbs** (thinkingorbs.com) — animated dotted-sphere status indicators for AI agents: one sphere, a state for each thing an agent does (working, reasoning, compacting, searching, background tasks, retrying). Distributed two ways from one source file: the npm package (`npm i thinkingorbs`, `import { Orb } from "thinkingorbs"`), and a shadcn registry item (`npx shadcn@latest add https://thinkingorbs.com/r/orb.json`) for people who want to own and edit the source. There is no CLI of our own.
+**Thinking Orbs** (thinkingorbs.com) — animated dotted-sphere status indicators for AI agents: one sphere, a state for each thing an agent does (working, reasoning, compacting, searching, background tasks, retrying). Distributed two ways from one source: the npm package (`npm i thinkingorbs`, `import { Orb } from "thinkingorbs"`, or `mountOrb` from `thinkingorbs/vanilla` without React), and a shadcn registry item (`npx shadcn@latest add https://thinkingorbs.com/r/orb.json`) for people who want to own and edit the source. There is no CLI of our own.
 
 The npm name `thinkingorbs` was unclaimed as of 2026-09-28 and isn't published yet. (`thinking-orbs` is taken — don't use it.)
 
@@ -29,9 +29,9 @@ No test runner is set up yet. Don't invent one without asking. Type-check with `
 ```
 apps/web/            Next.js 16 site — also serves the registry
   components/        the sphere (every orb state) and site UI
-  registry/orb/      the shipped <Orb>: source of truth for the npm package and the shadcn item
+  registry/orb/      what ships: orb-core.ts (all the drawing, plain JS, `mountOrb`) and orb.tsx (the React <Orb> around it)
   app/               the homepage, showing each orb; app/r/orb.json serves the shadcn item
-packages/thinkingorbs/  the npm package; `tsc` compiles apps/web/registry/orb/orb.tsx into dist/
+packages/thinkingorbs/  the npm package; `tsc` compiles both registry/orb files into dist/
 ```
 
 ### The sphere
@@ -43,7 +43,7 @@ packages/thinkingorbs/  the npm package; `tsc` compiles apps/web/registry/orb/or
 
 Timing runs through a per-look clock: `lookOf(kind, state)` keys a clock in `clocks`, `tick()` advances it (scaled by the `speeds` map, never stepping back), so every sphere showing the same look stays in sync. Spin periods come from `periodOf()`; `turnOf()` is the display value.
 
-`sphere.tsx` is the design lab, with every experiment. What ships is `registry/orb/orb.tsx`: a pruned copy holding only the homepage's orbs, keyed by their public slug (`OrbState`, e.g. `waiting` is `subagent-patch-descend` in the sphere). The homepage and chat mock render `<Orb>`, so the site shows exactly what ships. When an orb changes in `sphere.tsx` or joins the homepage, port it into `orb.tsx` and run the local check at `/playground/orb-check` (`?n=` sets the frame count): it steps both at the same instants and must say `same` for every orb.
+`sphere.tsx` is the design lab, with every experiment. What ships is `registry/orb/orb-core.ts`: a pruned copy holding only the homepage's orbs, keyed by their public slug (`OrbState`, e.g. `waiting` is `subagent-patch-descend` in the sphere). The homepage and chat mock render `<Orb>`, so the site shows exactly what ships. When an orb changes in `sphere.tsx` or joins the homepage, port it into `orb-core.ts` and run the local check at `/playground/orb-check` (`?n=` sets the frame count): it steps both at the same instants and must say `same` for every orb.
 
 ### The homepage
 
@@ -55,11 +55,13 @@ Timing runs through a per-look clock: `lookOf(kind, state)` keys a clock in `clo
 
 **Tailwind's source detection skips gitignored files**, so the local pages import `app/playground/local.css`, which pulls in `globals.css` plus the prototype theme and adds `@source` for each local folder. Shipped files must never import anything gitignored — a clean clone won't build. To check, copy only tracked files to a temp dir and run `next build` there.
 
-**The registry is the single source of truth with three consumers.** `apps/web/registry/orb/orb.tsx` is:
+**The registry is the single source of truth with three consumers.** `apps/web/registry/orb/` is:
 
 1. imported directly by the homepage for live previews,
 2. served by `app/r/orb.json/route.ts` as a shadcn registry item (prerendered at build), and
 3. compiled by `packages/thinkingorbs` into the npm package (`pnpm build` there; `npm publish` runs it first).
+
+Keep `orb.tsx`'s import of `./orb-core` extensionless: Turbopack won't map `./orb-core.js` to the `.ts` file, and shadcn users' tsconfigs may reject `.ts` extensions. The package build adds `.js` to its output so the files also run unbundled.
 
 ### Rules for anything in `registry/`
 

@@ -1,0 +1,21 @@
+{
+  // Builds the orb straight from the site's registry, the one copy of its source.
+  "files": ["../../apps/web/registry/orb/orb.tsx", "../../apps/web/registry/orb/orb-core.ts"],
+  "compilerOptions": {
+    "rootDir": "../../apps/web/registry/orb",
+    "outDir": "dist",
+    "declaration": true,
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    // Resolve React's types from this package, not from the site the source sits in.
+    "paths": {
+      "react": ["./node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"]
+    }
+  }
+}

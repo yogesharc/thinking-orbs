@@ -1,0 +1,2 @@
+# Its own workspace root, like apps/web: its lockfile and node_modules live here.
+ignoredBuiltDependencies: []

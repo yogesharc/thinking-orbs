@@ -9,18 +9,20 @@ export function Segmented<T extends string>({
   value,
   options,
   onChange,
+  className = "w-fit",
 }: {
   label: string;
   value: T;
   options: readonly { id: T; label: string; Icon?: LucideIcon }[];
   onChange: (id: T) => void;
+  className?: string;
 }) {
   const at = options.findIndex((o) => o.id === value);
 
   return (
-    <div role="radiogroup" aria-label={label} className="relative grid w-fit auto-cols-fr grid-flow-col rounded-full bg-foreground/[0.07] p-0.5">
+    <div role="radiogroup" aria-label={label} className={`relative grid ${className} auto-cols-fr grid-flow-col rounded-xl bg-foreground/[0.07] p-0.5`}>
       <span
-        className="absolute top-0.5 bottom-0.5 left-0.5 rounded-full bg-(--knob) shadow-[0_1px_3px_rgb(0_0_0/0.2),0_0_0_0.5px_rgb(0_0_0/0.06)] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
+        className="absolute top-0.5 bottom-0.5 left-0.5 rounded-[10px] bg-(--knob) shadow-[0_1px_3px_rgb(0_0_0/0.2),0_0_0_0.5px_rgb(0_0_0/0.06)] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
         style={{ width: `calc((100% - 4px) / ${options.length})`, transform: `translateX(${at * 100}%)` }}
       />
       {options.map(({ id, label, Icon }) => (
@@ -31,7 +33,7 @@ export function Segmented<T extends string>({
           aria-checked={value === id}
           aria-label={Icon && label}
           onClick={() => onChange(id)}
-          className={`relative flex h-7 items-center justify-center rounded-full text-sm transition-colors ${Icon ? "w-9" : "px-3"} ${value === id ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          className={`relative flex h-7 items-center justify-center rounded-[10px] text-sm transition-colors ${Icon ? "w-9" : "px-3"} ${value === id ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
         >
           {Icon ? <Icon className="size-3.5" strokeWidth={2.25} /> : label}
         </button>

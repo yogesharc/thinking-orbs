@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* The homepage's light mode, set by its theme switch rather than the OS. */
+@custom-variant light (&:where(.pg[data-mode="light"] *));
+
 /* The homepage's page and muted colours; `.pg` re-declares them for its light and dark. */
 @theme {
   --color-page: oklch(0.24 0 0);
