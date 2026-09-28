@@ -19,14 +19,15 @@ import { Orb } from "thinkingorbs";
 
 | Prop | Type | Default | |
 | --- | --- | --- | --- |
-| `state` | `OrbState` | `"base"` | Which orb to draw. |
+| `state` | `OrbState` | `"base"` | What the agent is doing. |
+| `variant` | `OrbVariant` | `"default"` | Which look of that state. |
 | `size` | `number` | `20` | Width and height in px. Every orb is tuned to read at 20. |
 | `speed` | `number` | `1` | How fast it runs: `0.5` is half speed, `2` double. Every motion scales together. |
 | `paused` | `boolean` | `false` | Holds it on its current frame. |
 | `label` | `string` | | What screen readers announce, like "Thinking". Without one it's hidden from them. |
 | `className` | `string` | | The orb draws in the text color, so set `color` to tint it. |
 
-States: `working`, `working-wring`, `reasoning`, `reasoning-two`, `searching`, `searching-lighthouse`, `background`, `background-spiral`, `retrying`, `retrying-ease-out`, `compacting`, `compacting-wring`, `compacting-fuse`, `waiting`, `base`.
+States and their variants (`default` is each state's own look): `working` (`gyro`), `reasoning` (`twins`), `searching` (`lighthouse`), `background` (`spiral`), `retrying` (`surge`), `compacting` (`squeeze`, `fuse`), `waiting`, `base`.
 
 It's a client component with no dependencies beyond React 18+. With `prefers-reduced-motion` it holds still.
 

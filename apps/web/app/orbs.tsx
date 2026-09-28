@@ -2,40 +2,40 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ChatMock, type ChatRow } from "@/components/chat-mock";
-import { Orb, type OrbState } from "@/registry/orb/orb";
+import { Orb, type OrbLook } from "@/registry/orb/orb";
 import { LLMS, props, REPO, USAGE, VANILLA } from "./llms";
 
 /**
- * `slug` is the orb's public name, what `<Orb state>` will take. `label` is the line it sits beside
+ * `orb` is what `<Orb>` takes: the state and, for a variation, its variant. `label` is the line it sits beside
  * in the chat, the way Dray words that state; `thought` makes it a thinking line, which names itself
  * plainly and streams a preview of the thought underneath. `done` is the row it leaves in the
  * transcript once the reader scrolls past it.
  */
-export type Item = { name: string; slug: OrbState; label: string; thought?: string; done?: ChatRow };
+export type Item = { name: string; orb: OrbLook; label: string; thought?: string; done?: ChatRow };
 /** Every orb, in the order one turn would reach them, so scrolling the list writes the transcript. */
 const orbs: Item[] = [
-  { name: "Working", slug: "working", label: "Working", done: { verb: "Read", target: "login/page.tsx" } },
-  { name: "Reasoning", slug: "reasoning", label: "Thinking", thought: "A redirect back to /login means the session looks missing. The cookie might be set too late…", done: "Thought" },
-  { name: "Searching", slug: "searching", label: "Searching web", done: { verb: "Searched web", target: "cookie set after redirect" } },
-  { name: "Searching · Lighthouse", slug: "searching-lighthouse", label: "Searching files", done: { verb: "Searched", target: "setCookie" } },
-  { name: "Working · Wring", slug: "working-wring", label: "Working", done: { verb: "Edited", target: "session.ts", add: 4, del: 2 } },
-  { name: "Background Tasks", slug: "background", label: "1 Background Task", done: { verb: "Bash", target: "pnpm test --watch" } },
-  { name: "Reasoning · Two", slug: "reasoning-two", label: "Thinking", thought: "Tests pass. Worth loading the page on the dev server to be sure…", done: "Thought" },
-  { name: "Background Tasks · Spiral", slug: "background-spiral", label: "2 Background Tasks", done: { verb: "Bash", target: "pnpm dev" } },
-  { name: "Retrying", slug: "retrying", label: "Retrying — attempt 2 of 10" },
+  { name: "Working", orb: { state: "working" }, label: "Working", done: { verb: "Read", target: "login/page.tsx" } },
+  { name: "Reasoning", orb: { state: "reasoning" }, label: "Thinking", thought: "A redirect back to /login means the session looks missing. The cookie might be set too late…", done: "Thought" },
+  { name: "Searching", orb: { state: "searching" }, label: "Searching web", done: { verb: "Searched web", target: "cookie set after redirect" } },
+  { name: "Searching · Lighthouse", orb: { state: "searching", variant: "lighthouse" }, label: "Searching files", done: { verb: "Searched", target: "setCookie" } },
+  { name: "Working · Gyro", orb: { state: "working", variant: "gyro" }, label: "Working", done: { verb: "Edited", target: "session.ts", add: 4, del: 2 } },
+  { name: "Background Tasks", orb: { state: "background" }, label: "1 Background Task", done: { verb: "Bash", target: "pnpm test --watch" } },
+  { name: "Reasoning · Twins", orb: { state: "reasoning", variant: "twins" }, label: "Thinking", thought: "Tests pass. Worth loading the page on the dev server to be sure…", done: "Thought" },
+  { name: "Background Tasks · Spiral", orb: { state: "background", variant: "spiral" }, label: "2 Background Tasks", done: { verb: "Bash", target: "pnpm dev" } },
+  { name: "Retrying", orb: { state: "retrying" }, label: "Retrying — attempt 2 of 10" },
   // One compaction, the live line changing orb as you pass its variations; the background tasks drain once it's done.
-  { name: "Compacting", slug: "compacting", label: "Compacting context" },
-  { name: "Compacting · Wring", slug: "compacting-wring", label: "Compacting context" },
-  { name: "Compacting · Fuse", slug: "compacting-fuse", label: "Compacting context", done: { verb: "Compacted", target: "Saved 45k tokens" } },
+  { name: "Compacting", orb: { state: "compacting" }, label: "Compacting context" },
+  { name: "Compacting · Squeeze", orb: { state: "compacting", variant: "squeeze" }, label: "Compacting context" },
+  { name: "Compacting · Fuse", orb: { state: "compacting", variant: "fuse" }, label: "Compacting context", done: { verb: "Compacted", target: "Saved 45k tokens" } },
   {
-    name: "Retrying · Ease out",
-    slug: "retrying-ease-out",
+    name: "Retrying · Surge",
+    orb: { state: "retrying", variant: "surge" },
     label: "Retrying — attempt 3 of 10",
     done: { text: "Fixed. The session cookie was set after the redirect, so every visit looked logged out. It's set first now, before the redirect goes out." },
   },
   // The turn never ends: after the reply, the agent carries on.
-  { name: "Waiting", slug: "waiting", label: "Waiting for usage limit to reset" },
-  { name: "Base", slug: "base", label: "Working" },
+  { name: "Waiting", orb: { state: "waiting" }, label: "Waiting for usage limit to reset" },
+  { name: "Base", orb: { state: "base" }, label: "Working" },
 ];
 /** The same orbs for the grid: each state followed by its variations, states in the order the story meets them. */
 const family = (o: Item) => o.name.split(" · ")[0];
@@ -92,9 +92,12 @@ function Card({ item }: { item: Item }) {
   return (
     <>
       <span className="flex h-56 w-full items-center justify-center rounded-2xl bg-foreground/[0.06] shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_12%,transparent)]">
-        <Orb size={96} state={item.slug} />
+        <Orb size={96} {...item.orb} />
       </span>
-      <span className="w-full px-4 pt-3 pb-4 text-center text-sm font-medium">{item.name}</span>
+      <span className="w-full px-4 pt-3 pb-4 text-center text-sm font-medium">
+        {item.name.split(" · ")[0]}
+        {item.orb.variant && <span className="text-muted-foreground"> · {item.name.split(" · ")[1]}</span>}
+      </span>
     </>
   );
 }
@@ -113,7 +116,7 @@ function OrbList({ picked, onPick }: { picked: Item; onPick: (item: Item) => voi
       {orbs.map((item) => {
         const on = item === picked;
         return (
-          <li key={item.slug} data-orb={item.slug}>
+          <li key={item.name} data-orb={item.name}>
             <button
               type="button"
               aria-pressed={on}
@@ -138,7 +141,7 @@ function OrbGrid() {
   return (
     <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {grouped.map((item) => (
-        <li key={item.slug} className={`${CARD} ${EDGE}`}>
+        <li key={item.name} className={`${CARD} ${EDGE}`}>
           <Card item={item} />
         </li>
       ))}
@@ -328,7 +331,7 @@ export function Orbs({ stars }: { stars: number | null }) {
           const r = el.getBoundingClientRect();
           return r.top <= line && r.bottom >= line;
         });
-        const item = card && orbs.find((o) => o.slug === card.dataset.orb);
+        const item = card && orbs.find((o) => o.name === card.dataset.orb);
         if (item) setPicked(item);
       }
       // The current section is the last one whose top has passed 40% down the viewport.
@@ -374,7 +377,7 @@ export function Orbs({ stars }: { stars: number | null }) {
               <span className="block text-muted-foreground">for AI Agents</span>
             </h1>
             <p className="text-sm text-muted-foreground">
-              Animated status orbs, built to read at 20px, the size they actually sit at in a real interface.
+              A library of beautiful status orbs for React and plain JS. One component, every state tuned to read at small sizes.
             </p>
           </div>
           <Install />
@@ -432,10 +435,10 @@ export function Orbs({ stars }: { stars: number | null }) {
           <aside aria-label="The picked orb in a chat" className="flex items-center lg:sticky lg:top-0 lg:col-start-2 lg:row-start-1 lg:h-screen lg:items-start lg:pt-[30vh] lg:pb-12">
             <ChatMock
               rows={wide ? [...SEED, ...orbs.slice(0, orbs.indexOf(picked)).flatMap((o) => (o.done ? [o.done] : []))] : SEED}
-              live={picked.slug.startsWith("background") ? undefined : picked}
+              live={picked.orb.state === "background" ? undefined : picked}
               tasks={
-                orbs.indexOf(picked) <= orbs.findIndex((o) => o.slug === "compacting-fuse")
-                  ? orbs.slice(0, orbs.indexOf(picked) + 1).findLast((o) => o.slug.startsWith("background"))
+                orbs.indexOf(picked) <= orbs.findIndex((o) => o.name === "Compacting · Fuse")
+                  ? orbs.slice(0, orbs.indexOf(picked) + 1).findLast((o) => o.orb.state === "background")
                   : undefined
               }
               className="lg:max-h-full"

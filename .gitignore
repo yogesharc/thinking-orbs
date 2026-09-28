@@ -14,3 +14,7 @@ next-env.d.ts
 /apps/web/prototype/
 /apps/web/registry/status/
 /pnpm-lock.yaml
+
+# Agent tooling: worktrees and a local copy of CLAUDE.md.
+/.claude/
+/AGENTS.md

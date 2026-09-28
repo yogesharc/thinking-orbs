@@ -1,11 +1,11 @@
 "use client";
 
 import { useLayoutEffect, useRef } from "react";
-import { Orb, type OrbState } from "@/registry/orb/orb";
+import { Orb, type OrbLook } from "@/registry/orb/orb";
 
 /** A finished step: "Thought", the agent's reply `text`, or a tool call's past-tense verb, its target, and for edits the lines added and removed. */
 export type ChatRow = "Thought" | { text: string } | { verb: string; target: string; add?: number; del?: number };
-type Live = { slug: OrbState };
+type Live = { orb: OrbLook };
 
 /** One line of the turn: a 20px slot for the orb (empty on finished rows), then the text, always at the same x. */
 function Row({ orb, children }: { orb?: React.ReactNode; children: React.ReactNode }) {
@@ -76,7 +76,7 @@ export function ChatMock({
         ))}
         {live && (
           <>
-            <Row orb={<Orb state={live.slug} />}>
+            <Row orb={<Orb {...live.orb} />}>
               {/* Thinking names itself plainly and streams a preview of the thought underneath; the rest shimmer. */}
               <span key={live.label} className={`transition-opacity duration-300 starting:opacity-0 ${live.thought ? "text-muted-foreground" : "shimmer"}`}>
                 {live.label}
@@ -93,7 +93,7 @@ export function ChatMock({
         )}
       </div>
       {tasks && (
-        <Row orb={<Orb state={tasks.slug} />}>
+        <Row orb={<Orb {...tasks.orb} />}>
           <span key={tasks.label} className="shimmer transition-opacity duration-300 starting:opacity-0">
             {tasks.label}
           </span>

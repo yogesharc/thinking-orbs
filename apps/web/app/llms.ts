@@ -3,7 +3,7 @@
  * /llms.txt, so an agent reads the same thing a person does.
  */
 
-export const REPO = "monorepo-labs/thinkingorbs";
+export const REPO = "yogesharc/thinkingorbs";
 
 export const USAGE = `import { Orb } from "thinkingorbs";
 
@@ -27,7 +27,8 @@ orb.destroy(); // remove it`;
 
 /** `react` marks the props only the React component takes. */
 export const props = [
-  { name: "state", type: "OrbState", fallback: `"base"`, note: "Which orb to draw." },
+  { name: "state", type: "OrbState", fallback: `"base"`, note: "What the agent is doing." },
+  { name: "variant", type: "OrbVariant", fallback: `"default"`, note: "Which look of that state." },
   { name: "size", type: "number", fallback: "20", note: "Width and height in px." },
   { name: "speed", type: "number", fallback: "1", note: "Speed multiplier." },
   { name: "paused", type: "boolean", fallback: "false", note: "Freezes the animation.", react: true },
@@ -35,23 +36,16 @@ export const props = [
   { name: "className", type: "string", fallback: "—", note: "Tint it with text-* classes.", react: true },
 ];
 
-/** Every public state, with what it's for. Variations are other looks for the same moment. */
-const states = [
-  ["working", "Busy, running a tool."],
-  ["working-wring", "Variation of working."],
-  ["reasoning", "Thinking."],
-  ["reasoning-two", "Variation of reasoning."],
-  ["searching", "Searching the web or files."],
-  ["searching-lighthouse", "Variation of searching."],
-  ["background", "Background tasks running, like a dev server."],
-  ["background-spiral", "Variation of background."],
-  ["retrying", "Retrying after an error."],
-  ["retrying-ease-out", "Variation of retrying."],
-  ["compacting", "Compacting the context window."],
-  ["compacting-wring", "Variation of compacting."],
-  ["compacting-fuse", "Variation of compacting."],
-  ["waiting", "Waiting for a usage limit to reset."],
-  ["base", "Idle, or anything without its own state."],
+/** Every state, what it's for, and its variants, each described by how it moves. */
+const states: [string, string, [string, string][]][] = [
+  ["working", "Busy, running a tool.", [["default", "A ring of light runs down it."], ["gyro", "Wobbles like a spinning top."]]],
+  ["reasoning", "Thinking.", [["default", "One spark wanders over it."], ["twins", "Two sparks wander at once."]]],
+  ["searching", "Searching the web or files.", [["default", "A lens hops between spots."], ["lighthouse", "A beam sweeps round, like a lighthouse."]]],
+  ["background", "Background tasks running, like a dev server.", [["default", "Fewer, bigger dots."], ["spiral", "The dots wound into spiral arms."]]],
+  ["retrying", "Retrying after an error.", [["default", "Spins, then winds back."], ["surge", "Each turn launches fast and eases out."]]],
+  ["compacting", "Compacting the context window.", [["default", "Packs tight, then springs back past loose."], ["squeeze", "Packs while wringing the top against the bottom."], ["fuse", "Packs along a burning fuse line, with no bounce."]]],
+  ["waiting", "Waiting for a usage limit to reset.", [["default", "A comet spirals round it."]]],
+  ["base", "Idle, or anything without its own state.", [["default", "A plain spin."]]],
 ];
 
 const code = (lang: string, src: string) => `\`\`\`${lang}\n${src}\n\`\`\``;
@@ -96,7 +90,7 @@ The orb draws in the text color (\`currentColor\`). With reduced motion it holds
 
 ## States
 
-${states.map(([slug, what]) => `- \`${slug}\`: ${what}`).join("\n")}
+${states.map(([state, what, looks]) => [`- \`${state}\`: ${what}`, ...looks.map(([v, how]) => `  - \`${v}\`: ${how}`)].join("\n")).join("\n")}
 
 ## About
 

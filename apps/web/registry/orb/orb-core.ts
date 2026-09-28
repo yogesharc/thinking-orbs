@@ -1,20 +1,22 @@
-/** Every orb, one per thing an agent does, each state followed by its variations. */
-export type OrbState =
-  | "base"
-  | "working"
-  | "working-wring"
-  | "reasoning"
-  | "reasoning-two"
-  | "searching"
-  | "searching-lighthouse"
-  | "background"
-  | "background-spiral"
-  | "retrying"
-  | "retrying-ease-out"
-  | "compacting"
-  | "compacting-wring"
-  | "compacting-fuse"
-  | "waiting";
+/** One state per thing an agent does, and the looks each comes in, `default` first. */
+export const VARIANTS = {
+  base: ["default"],
+  working: ["default", "gyro"],
+  reasoning: ["default", "twins"],
+  searching: ["default", "lighthouse"],
+  background: ["default", "spiral"],
+  retrying: ["default", "surge"],
+  compacting: ["default", "squeeze", "fuse"],
+  waiting: ["default"],
+} as const;
+
+export type OrbState = keyof typeof VARIANTS;
+export type OrbVariant<S extends OrbState = OrbState> = (typeof VARIANTS)[S][number];
+/** A state and one of its own variants, `default` if left out. With no state it's `base`. */
+export type OrbLook = { state?: undefined; variant?: undefined } | { [S in OrbState]: { state: S; variant?: OrbVariant<S> } }[OrbState];
+
+/** What the drawing keys on: the state alone for its default look, or state-variant. */
+type Look = OrbState | { [S in OrbState]: `${S}-${Exclude<OrbVariant<S>, "default">}` }[OrbState];
 
 const TAU = Math.PI * 2;
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
@@ -26,20 +28,20 @@ const hash = (n: number) => {
 const dist2 = (a: number[], b: number[]) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
 
 /** Time for one full turn, in ms. Retrying's two set their own pace in `yawOf`. */
-const PERIOD: Record<OrbState, number> = {
+const PERIOD: Record<Look, number> = {
   base: 6500,
   working: 3000,
-  "working-wring": 3000,
+  "working-gyro": 3000,
   reasoning: 6500,
-  "reasoning-two": 6500,
+  "reasoning-twins": 6500,
   searching: 13000,
   "searching-lighthouse": 13000,
   background: 13000,
   "background-spiral": 13000,
   retrying: 13000,
-  "retrying-ease-out": 13000,
+  "retrying-surge": 13000,
   compacting: 10000,
-  "compacting-wring": 10000,
+  "compacting-squeeze": 10000,
   "compacting-fuse": 10000,
   waiting: 13000,
 };
@@ -88,10 +90,10 @@ function rewind(t: number, w: number) {
   return k * (fwd - back) + a;
 }
 
-function yawOf(state: OrbState, t: number) {
+function yawOf(state: Look, t: number) {
   // The rewind at double time, at half the rate, so it still averages 4.5s a turn.
   if (state === "retrying") return rewind(2 * t, TAU / 9000);
-  if (state === "retrying-ease-out") {
+  if (state === "retrying-surge") {
     // Every turn, at 3.25s, starts fast and eases out, then the next launches straight away.
     const turns = t / 3250, u = turns - Math.floor(turns);
     return (Math.floor(turns) + (1 - (1 - u) ** 3)) * TAU;
@@ -104,7 +106,7 @@ const RING_AXIS = (() => {
   const tip = (30 * Math.PI) / 180, roll = (10 * Math.PI) / 180;
   return [-Math.sin(roll) * Math.cos(tip), Math.cos(roll) * Math.cos(tip), Math.sin(tip)];
 })();
-/** Wring: the ends turn up to this far (rad) against the middle, opposite ways. */
+/** Gyro and Squeeze: the ends turn up to this far (rad) against the middle, opposite ways. */
 const TWIST = 1.4;
 /** Lighthouse: its beam leans this far (rad) right, and its trail dies out this far behind it. */
 const LEAN = (30 * Math.PI) / 180, TRAIL = Math.PI / 2;
@@ -133,7 +135,7 @@ function lensAt(t: number) {
 const HOP = 220, TAIL = 5, REACH = 24, WALK = 16;
 
 /** Where the dots sit on a unit sphere: a Fibonacci spiral, or for Background · Spiral, eight arms. */
-function distribute(state: OrbState, count: number): number[][] {
+function distribute(state: Look, count: number): number[][] {
   if (state === "background-spiral") {
     // Arms wound pole to pole, turning a radian of longitude per radian of latitude. Toward the
     // poles every other arm stops where they'd crowd, then every other of those, so the caps fill without clotting.
@@ -155,9 +157,7 @@ function distribute(state: OrbState, count: number): number[][] {
   });
 }
 
-export type OrbOptions = {
-  /** Which orb to draw. */
-  state?: OrbState;
+export type OrbOptions = OrbLook & {
   /** Width and height in px. Every orb is tuned to read at 20. */
   size?: number;
   /** How fast it runs: 1 is as designed, 0.5 half speed, 2 double. Every motion in the orb scales together. */
@@ -171,7 +171,10 @@ export type OrbOptions = {
  * and `play()` carries on. The orb draws in `currentColor`, so the svg's CSS `color` tints it.
  * With reduced motion it holds still. Needs a browser: call it once the svg is on the page.
  */
-export function mountOrb(svg: SVGSVGElement, { state = "base", size = 20, speed = 1, label }: OrbOptions = {}) {
+export function mountOrb(svg: SVGSVGElement, { state: which = "base", variant, size = 20, speed = 1, label }: OrbOptions = {}) {
+  // A variant the state doesn't have (from plain JS, say) falls back to its default.
+  const own = variant !== "default" && (VARIANTS[which] as readonly string[]).includes(variant ?? "");
+  const state = (own ? `${which}-${variant}` : which) as Look;
   const attrs = { width: size, height: size, viewBox: `0 0 ${size} ${size}`, fill: "currentColor" };
   for (const [k, v] of Object.entries(attrs)) svg.setAttribute(k, String(v));
   if (label) {
@@ -191,7 +194,7 @@ export function mountOrb(svg: SVGSVGElement, { state = "base", size = 20, speed 
   const pts = distribute(state, count);
   // SVG, not canvas: vectors stay sharp under pinch zoom. One ink blends the same in any order, so no depth sort.
   const dots = pts.map(() => svg.appendChild(document.createElementNS("http://www.w3.org/2000/svg", "circle")));
-  const reasoning = state === "reasoning" || state === "reasoning-two";
+  const reasoning = state === "reasoning" || state === "reasoning-twins";
   const compacting = state === "compacting" || state === "compacting-fuse";
   // Reasoning: each dot's REACH nearest neighbours for the walk to hop between, and each walker's walk so far (head last).
   const near = reasoning
@@ -202,13 +205,13 @@ export function mountOrb(svg: SVGSVGElement, { state = "base", size = 20, speed 
           .slice(0, REACH),
       )
     : [];
-  const walks: number[][] = Array.from({ length: state === "reasoning-two" ? 2 : 1 }, () => []);
+  const walks: number[][] = Array.from({ length: state === "reasoning-twins" ? 2 : 1 }, () => []);
   let hops = 0;
 
   const draw = (t: number) => {
     const period = PERIOD[state], yaw = yawOf(state, t);
-    // Working · Wring's axis circles every 5s like a spinning top's, tipping ±10° toward you and leaning ±12° side to side.
-    const gyro = state === "working-wring" ? (t / 5000) * TAU : null;
+    // Working · Gyro's axis circles every 5s like a spinning top's, tipping ±10° toward you and leaning ±12° side to side.
+    const gyro = state === "working-gyro" ? (t / 5000) * TAU : null;
     const pitch = ((20 + (gyro === null ? 0 : 10 * Math.cos(gyro))) * Math.PI) / 180;
     const roll = gyro === null ? 0 : ((12 * Math.sin(gyro)) * Math.PI) / 180, sr = Math.sin(roll), cr = Math.cos(roll);
     const sy = Math.sin(yaw), cy = Math.cos(yaw), st = Math.sin(pitch), ct = Math.cos(pitch);
@@ -231,7 +234,7 @@ export function mountOrb(svg: SVGSVGElement, { state = "base", size = 20, speed 
           const recent = walk.slice(-8), from = walk[walk.length - 1];
           let best = -1, score = -Infinity;
           // With two walkers, each also pushes away from the other's head, up to ~45° apart.
-          const other = state === "reasoning-two" ? walks[1 - w].at(-1) : undefined;
+          const other = state === "reasoning-twins" ? walks[1 - w].at(-1) : undefined;
           near[from].forEach((k, j) => {
             const apart = other === undefined ? 0 : 1.2 * Math.min(Math.sqrt(dist2(pts[k], pts[other])), 0.8);
             const sc = facing(k) + 0.35 * hash(hops * 31 + j + w * 977) + apart;
@@ -256,8 +259,8 @@ export function mountOrb(svg: SVGSVGElement, { state = "base", size = 20, speed 
     const glow = Math.min(1, 3 * Math.sin(Math.PI * ((t % 6000) / 6000)));
     // The lens lives in view space, so it searches the face you see while the sphere turns under it.
     const lens = state === "searching" ? lensAt(t) : null;
-    // Wring twists back and forth every 2.6s; Working's at half the twist.
-    const tw = state === "working-wring" ? 0.5 * Math.sin((t / 2600) * TAU) : state === "compacting-wring" ? Math.sin((t / 2600) * TAU) : 0;
+    // Gyro and Squeeze twist back and forth every 2.6s, Gyro at half the twist.
+    const tw = state === "working-gyro" ? 0.5 * Math.sin((t / 2600) * TAU) : state === "compacting-squeeze" ? Math.sin((t / 2600) * TAU) : 0;
     // Compacting: a line crosses left to right over 2s, packing what it's passed, then all lets go
     // over 0.8s. Compacting springs back past loose; Fuse burns out like a firework, with no bounce.
     let sweep: { at: number; hold: number } | null = null;
