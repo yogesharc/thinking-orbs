@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ChatMock, type ChatRow } from "@/components/chat-mock";
 import { Orb, type OrbLook } from "@/registry/orb/orb";
@@ -94,7 +95,7 @@ function Card({ item }: { item: Item }) {
       <span className="flex h-56 w-full items-center justify-center rounded-2xl bg-foreground/[0.06] shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_12%,transparent)]">
         <Orb size={96} {...item.orb} />
       </span>
-      <span className="w-full px-4 pt-3 pb-4 text-center text-sm font-medium">
+      <span className="w-full px-4 pt-3 pb-4 text-center text-sm">
         {item.name.split(" · ")[0]}
         {item.orb.variant && <span className="text-muted-foreground"> · {item.name.split(" · ")[1]}</span>}
       </span>
@@ -107,26 +108,25 @@ const RING = "shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_30%,trans
 const EDGE = "shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_8%,transparent)]";
 
 /**
- * One card per orb, stacked in story order. The picked one wears the hover ring; clicking a card
+ * One card per orb in story order. The picked one wears the hover ring; clicking a card
  * scrolls it onto the pick line, which keeps it picked.
  */
-function OrbList({ picked, onPick }: { picked: Item; onPick: (item: Item) => void }) {
+export function OrbList({
+  picked,
+  onPick,
+  className = "sm:grid-cols-2 lg:grid-cols-1",
+}: {
+  picked: Item;
+  onPick: (item: Item, el: HTMLElement) => void;
+  className?: string;
+}) {
   return (
-    <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+    <ul className={`grid gap-4 ${className}`}>
       {orbs.map((item) => {
         const on = item === picked;
         return (
           <li key={item.name} data-orb={item.name}>
-            <button
-              type="button"
-              aria-pressed={on}
-              onClick={(e) => {
-                onPick(item);
-                const r = e.currentTarget.getBoundingClientRect();
-                if (isWide()) scrollBy({ top: r.top + r.height / 2 - pickLine(), behavior: "smooth" });
-              }}
-              className={`${CARD} ${on ? RING : EDGE}`}
-            >
+            <button type="button" aria-pressed={on} onClick={(e) => onPick(item, e.currentTarget)} className={`${CARD} ${on ? RING : EDGE}`}>
               <Card item={item} />
             </button>
           </li>
@@ -137,9 +137,9 @@ function OrbList({ picked, onPick }: { picked: Item; onPick: (item: Item) => voi
 }
 
 /** Every orb at once, grouped by state; nothing to pick, since there's no chat beside it. */
-function OrbGrid() {
+export function OrbGrid({ className = "sm:grid-cols-2 xl:grid-cols-3" }: { className?: string }) {
   return (
-    <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <ul className={`grid gap-4 ${className}`}>
       {grouped.map((item) => (
         <li key={item.name} className={`${CARD} ${EDGE}`}>
           <Card item={item} />
@@ -190,7 +190,7 @@ function Code({ children }: { children: string }) {
 function Guide({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
     <section id={id} className="mt-24 w-full scroll-mt-12">
-      <h2 className="mb-1.5 text-base font-medium tracking-[-0.01em]">{title}</h2>
+      <h2 className="mb-1.5 text-sm font-medium tracking-[-0.01em]">{title}</h2>
       <div className="flex flex-col gap-5 text-sm leading-relaxed text-muted-foreground">{children}</div>
     </section>
   );
@@ -230,34 +230,148 @@ function Tabs<T extends string>({
 const UNDERLINE =
   "text-muted-foreground underline decoration-foreground/25 decoration-[1.5px] underline-offset-[5px] transition-colors hover:text-foreground hover:decoration-foreground/60";
 
-function Links() {
+export function Links({ license = true }: { license?: boolean }) {
   return (
     <p className="flex flex-wrap items-baseline gap-x-3 text-sm text-muted-foreground">
-      <a href="https://www.patreon.com/c/yogesharc" className={UNDERLINE}>
+      <a href="https://www.patreon.com/c/yogesharc" target="_blank" rel="noopener" className={UNDERLINE}>
         Sponsor
       </a>
-      <a href="https://x.com/yogesharc" className={UNDERLINE}>
+      <a href="https://x.com/yogesharc" target="_blank" rel="noopener" className={UNDERLINE}>
         X
       </a>
-      <a href={`https://github.com/${REPO}`} className={UNDERLINE}>
+      <a href={`https://github.com/${REPO}`} target="_blank" rel="noopener" className={UNDERLINE}>
         GitHub
       </a>
-      <a href="/llms.txt" className={UNDERLINE}>
+      <a href="/llms.txt" target="_blank" className={UNDERLINE}>
         llms.txt
       </a>
-      <span>MIT License</span>
+      {license && <span>MIT License</span>}
     </p>
   );
 }
 
-function Credit() {
+function Credit({ license }: { license?: boolean }) {
   return (
-    <p className="text-sm text-muted-foreground">
-      Built by{" "}
-      <a href="https://yogesharc.com" className={UNDERLINE}>
-        Yogesh
-      </a>
+    <p className="flex gap-x-3 text-sm text-muted-foreground">
+      <span>
+        Built by{" "}
+        <a href="https://yogesharc.com?ref=thinkingorbs.com" target="_blank" rel="noopener" className={UNDERLINE}>
+          Yogesh
+        </a>
+      </span>
+      {license && <span>MIT License</span>}
     </p>
+  );
+}
+
+/** The pitch: name, one line on what it is, the install bar and who made it. */
+export function Hero({ license }: { license?: boolean }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-[28px] leading-[1.1] font-medium tracking-[-0.03em]">
+          Thinking Orbs
+          <span className="block text-muted-foreground">for AI Agents</span>
+        </h1>
+        <p className="text-sm text-muted-foreground">A component library of agent status orbs for React. No dependencies, 3.5 KB gzipped.</p>
+      </div>
+      <Install />
+      <Credit license={license} />
+    </div>
+  );
+}
+
+export type Mode = "dark" | "light";
+/** The page's wrapper classes: the palette hangs off `.pg[data-mode]`, set alongside. */
+export const theme = (mode: Mode) => `pg ${mode === "dark" ? "bg-black" : "bg-page"}`;
+
+/** GitHub stars and the theme switch, with Sponsor or the View all switch when the page has them. */
+export function TopBar({
+  stars,
+  mode,
+  onMode,
+  view,
+  onView,
+  sponsor,
+  className = "",
+}: {
+  stars: number | null;
+  mode: Mode;
+  onMode: (mode: Mode) => void;
+  view?: "list" | "grid";
+  onView?: (view: "list" | "grid") => void;
+  sponsor?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={`flex items-center gap-4 text-sm ${className}`}>
+      {sponsor && (
+        <a href="https://www.patreon.com/c/yogesharc" target="_blank" rel="noopener" className="text-muted-foreground transition-colors hover:text-foreground">
+          Sponsor
+        </a>
+      )}
+      {view && onView && (
+        // Small screens only ever show the grid with the chat, so there's nothing to switch.
+        <button
+          type="button"
+          onClick={() => {
+            onView(view === "list" ? "grid" : "list");
+            scrollTo({ top: 0 });
+          }}
+          className="hidden text-muted-foreground transition-colors hover:text-foreground lg:block"
+        >
+          {view === "list" ? "View all" : "Back"}
+        </button>
+      )}
+      <a
+        href={`https://github.com/${REPO}`}
+        target="_blank"
+        rel="noopener"
+        aria-label={stars === null ? "GitHub" : `Star on GitHub, ${stars} stars`}
+        className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <GitHubLogo className="size-4" />
+        {stars !== null && <span className="tabular-nums">{Intl.NumberFormat("en", { notation: "compact" }).format(stars)}</span>}
+      </a>
+      <button
+        type="button"
+        aria-label={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        onClick={() => onMode(mode === "dark" ? "light" : "dark")}
+        className={UNDERLINE}
+      >
+        {mode === "dark" ? "Light" : "Dark"}
+      </button>
+    </div>
+  );
+}
+
+/** Orbs, Installation, Usage, with the section you're reading lit. */
+export function Toc({ className = "flex-col gap-2" }: { className?: string }) {
+  const [active, setActive] = useState(toc[0].id);
+  useEffect(() => {
+    // The current section is the last one whose top has passed 40% down the viewport.
+    const onScroll = () =>
+      setActive(toc.findLast(({ id }) => document.getElementById(id)!.getBoundingClientRect().top <= innerHeight * 0.4)?.id ?? toc[0].id);
+    onScroll();
+    addEventListener("scroll", onScroll, { passive: true });
+    return () => removeEventListener("scroll", onScroll);
+  }, []);
+  return (
+    <nav aria-label="Contents">
+      <ul className={`flex text-sm ${className}`}>
+        {toc.map(({ id, label }) => (
+          <li key={id}>
+            <a
+              href={`#${id}`}
+              aria-current={active === id ? "location" : undefined}
+              className={`transition-colors ${active === id ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
 
@@ -270,17 +384,103 @@ function GitHubLogo({ className }: { className?: string }) {
   );
 }
 
-/** How far down the viewport a card has to cross to be picked: a third of the way, so the first card starts picked. */
-const pickLine = () => innerHeight * 0.35;
+/** Dray's mark, from Dray's own assets. */
+function DrayMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 76 96" fill="currentColor" aria-hidden className={className}>
+      <path d="M48.2787 0C49.9989 5.053e-08 51.3934 1.4046 51.3934 3.13726V8.78431C51.3934 17.4476 58.3661 24.4706 66.9672 24.4706H72.8852C74.6055 24.4706 76 25.8752 76 27.6078V68.3922C76 70.1248 74.6055 71.5294 72.8852 71.5294H66.9672C58.3661 71.5294 51.3934 78.5524 51.3934 87.2157V92.8627C51.3934 94.5954 49.9989 96 48.2787 96H0.155738C0.0697261 96 0 95.9298 0 95.8431V64.7843C0 64.6977 0.0697261 64.6275 0.155738 64.6275H29.2787C37.8798 64.6275 44.8525 57.6045 44.8525 48.9412V47.0588C44.8525 38.3955 37.8798 31.3726 29.2787 31.3726H0.155738C0.0697261 31.3726 0 31.3023 0 31.2157V0.156863C0 0.0702299 0.0697261 0 0.155738 0H48.2787Z" />
+    </svg>
+  );
+}
 
-/** Desktop, where the chat sits beside the cards and scrolling writes the turn; smaller screens just show it. */
-const WIDE = "(min-width: 64rem)";
-const isWide = () => matchMedia(WIDE).matches;
-const onWideChange = (cb: () => void) => {
-  const mq = matchMedia(WIDE);
-  mq.addEventListener("change", cb);
-  return () => mq.removeEventListener("change", cb);
-};
+/** Yogesh's tools, this one first and in full colour. */
+function Tools() {
+  return (
+    <nav aria-label="More tools by Yogesh" className="flex items-center gap-4 text-sm">
+      <Link href="/" aria-current="page" className="flex items-center gap-1.5 text-foreground">
+        <Orb size={16} />
+        Thinking Orbs
+      </Link>
+      <a href="https://drayhq.com?ref=thinkingorbs.com" target="_blank" rel="noopener" className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground">
+        <DrayMark className="h-3 w-auto" />
+        Dray
+      </a>
+    </nav>
+  );
+}
+
+/** How far down the viewport a card has to cross to be picked: about a third, capped so tall screens don't push the cards far down. */
+const pickLine = () => Math.min(innerHeight * 0.35, 360);
+
+const media = (query: string) => ({
+  matches: () => matchMedia(query).matches,
+  subscribe: (cb: () => void) => {
+    const mq = matchMedia(query);
+    mq.addEventListener("change", cb);
+    return () => mq.removeEventListener("change", cb);
+  },
+});
+/** Widths where the chat sits beside the cards and scrolling writes the turn; below them it just shows the seed rows. */
+export const LG = media("(min-width: 64rem)");
+export const XL = media("(min-width: 80rem)");
+
+/**
+ * The picked card: whichever crosses the pick line once the screen is `wide`. When a row holds
+ * several, its height is split between them left to right, so scrolling zigzags through the row.
+ */
+export function useStory(wide = LG) {
+  const [picked, setPicked] = useState(orbs[0]);
+  const isWide = useSyncExternalStore(wide.subscribe, wide.matches, () => true);
+  // A click scrolls its card to the line; until that lands, the cards it passes shouldn't pick themselves.
+  const clicked = useRef(0);
+
+  useEffect(() => {
+    const onScroll = () => {
+      if (!wide.matches() || performance.now() < clicked.current) return;
+      const line = pickLine();
+      const row = [...document.querySelectorAll<HTMLElement>("[data-orb]")].filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.top <= line && r.bottom >= line;
+      });
+      if (!row.length) return;
+      const r = row[0].getBoundingClientRect();
+      const card = row[Math.min(row.length - 1, Math.floor(((line - r.top) / r.height) * row.length))];
+      const item = orbs.find((o) => o.name === card.dataset.orb);
+      if (item) setPicked(item);
+    };
+    onScroll();
+    addEventListener("scroll", onScroll, { passive: true });
+    return () => removeEventListener("scroll", onScroll);
+  }, [wide]);
+
+  const pick = (item: Item, el: HTMLElement) => {
+    clicked.current = performance.now() + 900;
+    setPicked(item);
+    if (!wide.matches()) return;
+    // Land the line in this card's share of its row, so the next scroll doesn't hand it to a neighbour.
+    const r = el.getBoundingClientRect();
+    const row = [...document.querySelectorAll<HTMLElement>("[data-orb]")].filter((c) => c.getBoundingClientRect().top === r.top);
+    const k = row.indexOf(el.closest<HTMLElement>("[data-orb]")!);
+    scrollBy({ top: r.top + (r.height * (k + 0.5)) / row.length - pickLine(), behavior: "smooth" });
+  };
+
+  return { picked, pick, wide: isWide };
+}
+
+/** The picked orb live in a chat turn; on wide screens, the orbs before it are already rows above. */
+export function StoryChat({ picked, wide, className = "" }: { picked: Item; wide: boolean; className?: string }) {
+  const at = orbs.indexOf(picked);
+  return (
+    <aside aria-label="The picked orb in a chat" className={`flex flex-col gap-3 ${className}`}>
+      <ChatMock
+        rows={wide ? [...SEED, ...orbs.slice(0, at).flatMap((o) => (o.done ? [o.done] : []))] : SEED}
+        live={picked.orb.state === "background" ? undefined : picked}
+        tasks={at <= orbs.findIndex((o) => o.name === "Compacting · Fuse") ? orbs.slice(0, at + 1).findLast((o) => o.orb.state === "background") : undefined}
+        className="min-h-0"
+      />
+    </aside>
+  );
+}
 
 /** Ways to install: the package from each package manager, or shadcn to copy the React source in. */
 const INSTALLS = [
@@ -302,12 +502,12 @@ const toc = [
   { id: "usage", label: "Usage" },
 ];
 
-/** Installation and Usage: which package manager and which language to show are theirs alone. */
-function Docs() {
+/** Installation and Usage: which package manager and which language to show are theirs alone. `llms` ends them with a link to /llms.txt. */
+export function Docs({ className = "", llms }: { className?: string; llms?: boolean }) {
   const [via, setVia] = useState<(typeof INSTALLS)[number]["id"]>("npm");
   const [lang, setLang] = useState<"react" | "js">("react");
   return (
-    <div className="max-w-xl min-w-0 lg:pb-24 lg:col-start-2 lg:row-start-2">
+    <div className={`max-w-xl min-w-0 ${className}`}>
       <Guide id="installation" title="Installation">
         <p>Add it to any project. The React orb needs nothing but React, and the plain JS one needs nothing at all.</p>
         <div className="flex flex-col gap-2">
@@ -332,170 +532,83 @@ function Docs() {
           <h3 className="font-medium text-foreground">{lang === "react" ? "Props" : "Options"}</h3>
           <span>All optional</span>
         </div>
-        <table className="w-full text-left">
-          <thead className="text-muted-foreground">
-            <tr className="border-b border-foreground/10">
-              <th className="py-2 pr-4 font-normal">Prop</th>
-              <th className="py-2 pr-4 font-normal">Type</th>
-              <th className="py-2 pr-4 font-normal">Default</th>
-              <th className="py-2 font-normal">Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            {props.filter((p) => lang === "react" || !p.react).map((p) => (
-              <tr key={p.name} className="border-b border-foreground/10 align-top">
-                <td className="py-2 pr-4 font-mono text-foreground">{p.name}</td>
-                <td className="py-2 pr-4 font-mono">{p.type}</td>
-                <td className="py-2 pr-4 font-mono">{p.fallback}</td>
-                <td className="py-2">{p.note}</td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="text-muted-foreground">
+              <tr className="border-b border-foreground/10">
+                <th className="py-2 pr-4 font-normal">Prop</th>
+                <th className="py-2 pr-4 font-normal">Type</th>
+                <th className="py-2 pr-4 font-normal">Default</th>
+                <th className="py-2 font-normal">Description</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {props.filter((p) => lang === "react" || !p.react).map((p) => (
+                <tr key={p.name} className="border-b border-foreground/10 align-top">
+                  <td className="py-2 pr-4 font-mono text-foreground">{p.name}</td>
+                  <td className="py-2 pr-4 font-mono">{p.type}</td>
+                  <td className="py-2 pr-4 font-mono">{p.fallback}</td>
+                  <td className="py-2">{p.note}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {llms && (
+          <a href="/llms.txt" target="_blank" className={`self-start ${UNDERLINE}`}>
+            llms.txt
+          </a>
+        )}
       </Guide>
     </div>
   );
 }
 
 /**
- * The landing page, three columns on wide screens: the pitch and contents on the left and the chat
- * on the right stay put while the orbs scroll between them; the guide follows below. Whichever card
- * sits across the middle of the screen is picked, and the chat's live line shows it.
+ * The landing page. Contents and switches run along the top; on wide screens the pitch sits in a
+ * sticky left column, the orbs two to a row in the middle, and the chat sticky on the right. Scrolling
+ * zigzags through each row of cards, picking the one the pick line crosses, and the chat's live line shows it.
  */
 export function Orbs({ stars }: { stars: number | null }) {
-  const [mode, setMode] = useState<"dark" | "light">("dark");
-  const [picked, setPicked] = useState(orbs[0]);
-  const [view, setView] = useState<"list" | "grid">("list");
-  const [active, setActive] = useState(toc[0].id);
-  const wide = useSyncExternalStore(onWideChange, isWide, () => true);
-  // A click scrolls its card to the middle; until that lands, the cards it passes shouldn't pick themselves.
-  const clicked = useRef(0);
-
+  const [mode, setMode] = useState<Mode>("dark");
+  const { picked, pick, wide } = useStory(XL);
+  const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
-    const onScroll = () => {
-      const line = pickLine();
-      if (isWide() && performance.now() > clicked.current) {
-        const card = [...document.querySelectorAll<HTMLElement>("[data-orb]")].find((el) => {
-          const r = el.getBoundingClientRect();
-          return r.top <= line && r.bottom >= line;
-        });
-        const item = card && orbs.find((o) => o.name === card.dataset.orb);
-        if (item) setPicked(item);
-      }
-      // The current section is the last one whose top has passed 40% down the viewport.
-      setActive(toc.findLast(({ id }) => document.getElementById(id)!.getBoundingClientRect().top <= innerHeight * 0.4)?.id ?? toc[0].id);
-    };
+    const onScroll = () => setScrolled(scrollY > 0);
     onScroll();
     addEventListener("scroll", onScroll, { passive: true });
     return () => removeEventListener("scroll", onScroll);
   }, []);
 
-  const pick = (item: Item) => {
-    clicked.current = performance.now() + 900;
-    setPicked(item);
-  };
-
   return (
-    <div
-      data-mode={mode}
-      className={`pg relative flex flex-1 flex-col gap-12 px-4 py-12 sm:px-8 lg:grid lg:grid-cols-[20rem_minmax(0,1fr)] lg:items-start lg:gap-x-16 lg:gap-y-0 lg:py-0 ${mode === "dark" ? "bg-black" : "bg-page"}`}
-    >
-      <header className="flex flex-col justify-between gap-12 lg:sticky lg:top-0 lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:h-screen lg:py-12">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <h1 className="text-[28px] leading-[1.1] font-medium tracking-[-0.03em]">
-              Thinking Orbs
-              <span className="block text-muted-foreground">for AI Agents</span>
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              A library of beautiful status orbs for React and plain JS. One component, every state tuned to read at small sizes.
-            </p>
-          </div>
-          <Install />
-          <Credit />
+    <div data-mode={mode} className={`${theme(mode)} flex flex-1 flex-col`}>
+      {/* Contents, tools and switches; the equal side columns keep the tools centred whatever sits beside them. */}
+      <div className="z-10 mx-auto grid h-12 w-full max-w-[90rem] grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 sm:px-8 xl:sticky xl:top-0">
+        {/* Small screens drop the contents; the row has no room for them. */}
+        <div className="hidden lg:block">
+          <Toc className="gap-4" />
         </div>
-        {/* Wide screens only; small ones get the links in a footer below the guide. */}
-        <div className="hidden flex-col gap-8 lg:flex">
-          <nav aria-label="Contents">
-            <ul className="flex flex-col gap-2 text-sm">
-              {toc.map(({ id, label }) => (
-                <li key={id}>
-                  <a
-                    href={`#${id}`}
-                    aria-current={active === id ? "location" : undefined}
-                    className={`transition-colors ${active === id ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                  >
-                    {label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-          <Links />
+        {/* Only at the top of the page; once you scroll it slides up out of the pinned row. */}
+        <div className={`col-start-2 transition-[translate,visibility] duration-300 ease-out ${scrolled ? "invisible -translate-y-12" : ""}`}>
+          <Tools />
         </div>
-      </header>
-
-      {/* Pinned on wide screens; on small ones it sits at the top and scrolls away. */}
-      <div className="absolute top-12 right-4 z-10 flex items-center gap-4 text-sm sm:right-8 lg:fixed">
-        {/* Small screens only ever show the grid with the chat, so there's nothing to switch. */}
-        <button
-          type="button"
-          onClick={() => {
-            setView(view === "list" ? "grid" : "list");
-            scrollTo({ top: 0 });
-          }}
-          className="hidden text-muted-foreground transition-colors hover:text-foreground lg:block"
-        >
-          {view === "list" ? "View all" : "Back"}
-        </button>
-        <a
-          href={`https://github.com/${REPO}`}
-          aria-label={stars === null ? "GitHub" : `Star on GitHub, ${stars} stars`}
-          className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <GitHubLogo className="size-4" />
-          {stars !== null && <span className="tabular-nums">{Intl.NumberFormat("en", { notation: "compact" }).format(stars)}</span>}
-        </a>
-        <button
-          type="button"
-          aria-label={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          onClick={() => setMode(mode === "dark" ? "light" : "dark")}
-          className={UNDERLINE}
-        >
-          {mode === "dark" ? "Light" : "Dark"}
-        </button>
+        <TopBar stars={stars} mode={mode} onMode={setMode} sponsor className="justify-self-end" />
       </div>
 
-      {/* Both views stay mounted and the other is hidden, so switching is instant: hidden orbs stop drawing. */}
-      <section id={view === "grid" ? "orbs" : undefined} hidden={view !== "grid"} aria-label="Orbs" className="min-w-0 scroll-mt-12 lg:col-start-2 lg:row-start-1 lg:pt-24 lg:pb-12">
-        <OrbGrid />
-      </section>
-      {/* Its own box, so the sticky chat is bounded by the cards and scrolls away before the guide. */}
-      <div hidden={view !== "list"} className="flex flex-col gap-12 lg:col-start-2 lg:row-start-1 lg:grid lg:grid-cols-[21rem_minmax(0,1fr)] lg:items-start lg:gap-x-16">
-        <aside aria-label="The picked orb in a chat" className="flex items-center lg:sticky lg:top-0 lg:col-start-2 lg:row-start-1 lg:h-screen lg:items-start lg:pt-[30vh] lg:pb-12">
-          <ChatMock
-            rows={wide ? [...SEED, ...orbs.slice(0, orbs.indexOf(picked)).flatMap((o) => (o.done ? [o.done] : []))] : SEED}
-            live={picked.orb.state === "background" ? undefined : picked}
-            tasks={
-              orbs.indexOf(picked) <= orbs.findIndex((o) => o.name === "Compacting · Fuse")
-                ? orbs.slice(0, orbs.indexOf(picked) + 1).findLast((o) => o.orb.state === "background")
-                : undefined
-            }
-            className="lg:max-h-full"
-          />
-        </aside>
-
-        <section id={view === "list" ? "orbs" : undefined} aria-label="Orbs" className="min-w-0 scroll-mt-12 lg:col-start-1 lg:row-start-1 lg:py-12">
-          <OrbList picked={picked} onPick={pick} />
-        </section>
+      <div className="mx-auto flex w-full max-w-[90rem] flex-col gap-12 px-4 py-12 sm:px-8 xl:grid xl:grid-cols-[20rem_minmax(0,1fr)] xl:items-start xl:gap-x-12 xl:gap-y-0 xl:py-0">
+        <header className="xl:sticky xl:top-12 xl:col-start-1 xl:row-start-1 xl:flex xl:h-[calc(100vh-3rem)] xl:items-center xl:pb-12">
+          <Hero license />
+        </header>
+        {/* The chat spans the cards and the guide, so it stays pinned while the last rows reach the pick line on tall screens. */}
+        <div className="flex flex-col gap-12 xl:col-start-2 xl:row-start-1 xl:grid xl:grid-cols-[minmax(0,1fr)_21rem] xl:items-start xl:gap-x-12 xl:gap-y-0">
+          <StoryChat picked={picked} wide={wide} className="xl:sticky xl:top-12 xl:col-start-2 xl:row-span-2 xl:row-start-1 xl:h-[calc(100vh-3rem)] xl:items-start xl:pt-[calc(min(30vh,312px)-3rem)] xl:pb-12" />
+          {/* Starts level with the chat, so the pick line opens on the first row's left card. */}
+          <section id="orbs" aria-label="Orbs" className="min-w-0 scroll-mt-12 xl:col-start-1 xl:row-start-1 xl:pt-[calc(min(30vh,312px)-3rem)] xl:pb-12">
+            <OrbList picked={picked} onPick={pick} className="sm:grid-cols-2" />
+          </section>
+          <Docs llms className="xl:col-start-1 xl:row-start-2 xl:min-h-screen xl:pb-24" />
+        </div>
       </div>
-
-      <Docs />
-
-      <footer className="lg:hidden">
-        <Links />
-      </footer>
     </div>
   );
 }
-
