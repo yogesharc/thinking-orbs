@@ -398,7 +398,7 @@ function Tools() {
   return (
     <nav aria-label="More tools by Yogesh" className="flex items-center gap-4 text-sm">
       <Link href="/" aria-current="page" className="flex items-center gap-1.5 text-foreground">
-        <Orb size={16} />
+        <Orb size={20} />
         Thinking Orbs
       </Link>
       <a href="https://drayhq.com?ref=thinkingorbs.com" target="_blank" rel="noopener" className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground">
@@ -572,24 +572,16 @@ export function Docs({ className = "", llms }: { className?: string; llms?: bool
 export function Orbs({ stars }: { stars: number | null }) {
   const [mode, setMode] = useState<Mode>("dark");
   const { picked, pick, wide } = useStory(XL);
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => {
-    const onScroll = () => setScrolled(scrollY > 0);
-    onScroll();
-    addEventListener("scroll", onScroll, { passive: true });
-    return () => removeEventListener("scroll", onScroll);
-  }, []);
 
   return (
     <div data-mode={mode} className={`${theme(mode)} flex flex-1 flex-col`}>
       {/* Contents, tools and switches; the equal side columns keep the tools centred whatever sits beside them. */}
-      <div className="z-10 mx-auto grid h-12 w-full max-w-[90rem] grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 sm:px-8 xl:sticky xl:top-0">
-        {/* Small screens drop the contents; the row has no room for them. */}
-        <div className="hidden lg:block">
+      <div className="z-10 mx-auto flex h-12 w-full max-w-[90rem] items-center justify-between gap-4 px-4 sm:px-8 md:grid md:grid-cols-[1fr_auto_1fr] xl:sticky xl:top-0">
+        {/* Phones drop the contents, since the row has no room for them, and the tools move to the left. */}
+        <div className="hidden md:block">
           <Toc className="gap-4" />
         </div>
-        {/* Only at the top of the page; once you scroll it slides up out of the pinned row. */}
-        <div className={`col-start-2 transition-[translate,visibility] duration-300 ease-out ${scrolled ? "invisible -translate-y-12" : ""}`}>
+        <div className="md:col-start-2">
           <Tools />
         </div>
         <TopBar stars={stars} mode={mode} onMode={setMode} sponsor className="justify-self-end" />
