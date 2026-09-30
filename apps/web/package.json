@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "dialkit": "^2.0.2",
     "motion": "^13.4.5",
     "next": "16.3.5",
