@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Docs, Hero, Links, OrbGrid, OrbList, StoryChat, theme, Toc, TopBar, useStory, XL, type Mode } from "./orbs";
+import { Docs, Hero, Links, OrbGrid, OrbList, StoryChat, Toc, TopBar, useStory } from "./orbs";
+import { theme, XL, type Mode } from "./orbs-data";
 
 // Homepage layouts tried out at /v1 to /v6; the fifth became the homepage. Each wide-screen column that
 // holds several blocks is `contents` on small screens, so `order` can slot the cards in after the pitch and before the guide.

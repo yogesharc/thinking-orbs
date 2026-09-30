@@ -1,6 +1,11 @@
 {
   // Builds the orb straight from the site's registry, the one copy of its source.
-  "files": ["../../apps/web/registry/orb/orb.tsx", "../../apps/web/registry/orb/orb-core.ts"],
+  "files": [
+    "../../apps/web/registry/orb/orb.tsx",
+    "../../apps/web/registry/orb/orb-core.ts",
+    "../../apps/web/registry/orb/shapes.ts",
+    "../../apps/web/registry/orb/renders.ts"
+  ],
   "compilerOptions": {
     "rootDir": "../../apps/web/registry/orb",
     "outDir": "dist",

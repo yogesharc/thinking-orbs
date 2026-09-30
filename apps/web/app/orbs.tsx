@@ -3,41 +3,10 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ChatMock, type ChatRow } from "@/components/chat-mock";
-import { Orb, type OrbLook } from "@/registry/orb/orb";
-import { LLMS, props, REPO, USAGE, VANILLA } from "./llms";
+import { Orb } from "@/registry/orb/orb";
+import { EXTRAS, EXTRAS_VANILLA, LLMS, props, REPO, USAGE, VANILLA } from "./llms";
+import { LG, orbs, theme, XL, type Item, type Mode } from "./orbs-data";
 
-/**
- * `orb` is what `<Orb>` takes: the state and, for a variation, its variant. `label` is the line it sits beside
- * in the chat, the way Dray words that state; `thought` makes it a thinking line, which names itself
- * plainly and streams a preview of the thought underneath. `done` is the row it leaves in the
- * transcript once the reader scrolls past it.
- */
-export type Item = { name: string; orb: OrbLook; label: string; thought?: string; done?: ChatRow };
-/** Every orb, in the order one turn would reach them, so scrolling the list writes the transcript. */
-const orbs: Item[] = [
-  { name: "Working", orb: { state: "working" }, label: "Working", done: { verb: "Read", target: "login/page.tsx" } },
-  { name: "Reasoning", orb: { state: "reasoning" }, label: "Thinking", thought: "A redirect back to /login means the session looks missing. The cookie might be set too late…", done: "Thought" },
-  { name: "Searching", orb: { state: "searching" }, label: "Searching web", done: { verb: "Searched web", target: "cookie set after redirect" } },
-  { name: "Searching · Lighthouse", orb: { state: "searching", variant: "lighthouse" }, label: "Searching files", done: { verb: "Searched", target: "setCookie" } },
-  { name: "Working · Gyro", orb: { state: "working", variant: "gyro" }, label: "Working", done: { verb: "Edited", target: "session.ts", add: 4, del: 2 } },
-  { name: "Background Tasks", orb: { state: "background" }, label: "1 Background Task", done: { verb: "Bash", target: "pnpm test --watch" } },
-  { name: "Reasoning · Twins", orb: { state: "reasoning", variant: "twins" }, label: "Thinking", thought: "Tests pass. Worth loading the page on the dev server to be sure…", done: "Thought" },
-  { name: "Background Tasks · Spiral", orb: { state: "background", variant: "spiral" }, label: "2 Background Tasks", done: { verb: "Bash", target: "pnpm dev" } },
-  { name: "Retrying", orb: { state: "retrying" }, label: "Retrying — attempt 2 of 10" },
-  // One compaction, the live line changing orb as you pass its variations; the background tasks drain once it's done.
-  { name: "Compacting", orb: { state: "compacting" }, label: "Compacting context" },
-  { name: "Compacting · Squeeze", orb: { state: "compacting", variant: "squeeze" }, label: "Compacting context" },
-  { name: "Compacting · Fuse", orb: { state: "compacting", variant: "fuse" }, label: "Compacting context", done: { verb: "Compacted", target: "Saved 45k tokens" } },
-  {
-    name: "Retrying · Surge",
-    orb: { state: "retrying", variant: "surge" },
-    label: "Retrying — attempt 3 of 10",
-    done: { text: "Fixed. The session cookie was set after the redirect, so every visit looked logged out. It's set first now, before the redirect goes out." },
-  },
-  // The turn never ends: after the reply, the agent carries on.
-  { name: "Waiting", orb: { state: "waiting" }, label: "Waiting for usage limit to reset" },
-  { name: "Base", orb: { state: "base" }, label: "Working" },
-];
 /** The same orbs for the grid: each state followed by its variations, states in the order the story meets them. */
 const family = (o: Item) => o.name.split(" · ")[0];
 const grouped = orbs.toSorted((a, b) => orbs.findIndex((o) => family(o) === family(a)) - orbs.findIndex((o) => family(o) === family(b)));
@@ -60,7 +29,7 @@ function Install({ command = COMMAND }: { command?: string }) {
     });
 
   return (
-    <div className="flex w-full items-center rounded-xl bg-foreground/[0.07] text-sm text-foreground whitespace-nowrap light:bg-transparent light:ring-1 light:ring-foreground/12">
+    <div className="flex w-full items-center rounded-xl text-sm text-foreground whitespace-nowrap ring-1 ring-foreground/12">
       <button
         type="button"
         onClick={() => copy("command")}
@@ -80,7 +49,7 @@ function Install({ command = COMMAND }: { command?: string }) {
         type="button"
         onClick={() => copy("prompt")}
         aria-label="Copy a prompt for your agent"
-        className="mr-1.5 w-[6.25rem] shrink-0 rounded-lg bg-foreground/[0.1] py-1 text-foreground transition-colors hover:bg-foreground/[0.16]"
+        className="mr-1.5 w-[6.25rem] shrink-0 rounded-lg bg-fill py-1 text-foreground transition-colors hover:bg-fill-hover"
       >
         {copied === "prompt" ? "Copied" : "Copy prompt"}
       </button>
@@ -92,7 +61,7 @@ function Install({ command = COMMAND }: { command?: string }) {
 function Card({ item }: { item: Item }) {
   return (
     <>
-      <span className="flex h-56 w-full items-center justify-center rounded-2xl bg-foreground/[0.06] shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_12%,transparent)]">
+      <span className="flex h-56 w-full items-center justify-center rounded-2xl bg-foreground/[0.06] shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_12%,transparent)] light:bg-fill">
         <Orb size={96} {...item.orb} />
       </span>
       <span className="w-full px-4 pt-3 pb-4 text-center text-sm">
@@ -103,7 +72,7 @@ function Card({ item }: { item: Item }) {
   );
 }
 
-const CARD = "flex w-full flex-col rounded-2xl bg-foreground/[0.04] transition-shadow hover:shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_30%,transparent)] light:bg-transparent light:ring-1 light:ring-foreground/12 light:hover:ring-foreground/30";
+const CARD = "flex w-full flex-col rounded-2xl bg-foreground/[0.04] transition-shadow hover:shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_30%,transparent)] light:bg-white light:shadow-[0_1px_2px_rgb(0_0_0/0.07),0_1px_1px_rgb(0_0_0/0.04)]! light:ring-1 light:ring-foreground/12 light:hover:ring-foreground/30";
 const RING = "shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_30%,transparent)] light:ring-foreground/30";
 const EDGE = "shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_8%,transparent)]";
 
@@ -180,7 +149,7 @@ function highlight(src: string) {
 
 function Code({ children }: { children: string }) {
   return (
-    <pre className="overflow-x-auto rounded-2xl bg-foreground/[0.08] p-5 font-mono text-sm leading-relaxed text-foreground shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_10%,transparent)] light:bg-transparent light:shadow-none light:ring-1 light:ring-foreground/12">
+    <pre className="overflow-x-auto rounded-2xl bg-fill p-5 font-mono text-sm leading-relaxed text-foreground shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_10%,transparent)] light:bg-transparent light:shadow-none light:ring-1 light:ring-foreground/12">
       <code>{highlight(children)}</code>
     </pre>
   );
@@ -217,7 +186,7 @@ function Tabs<T extends string>({
           role="tab"
           aria-selected={value === id}
           onClick={() => onChange(id)}
-          className={`h-8 rounded-lg px-3 transition-colors ${value === id ? "bg-foreground/[0.08] text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          className={`h-8 rounded-lg px-3 transition-colors ${value === id ? "bg-fill text-foreground" : "text-muted-foreground hover:text-foreground"}`}
         >
           {label}
         </button>
@@ -271,9 +240,9 @@ export function Hero({ license }: { license?: boolean }) {
       <div className="flex flex-col gap-2">
         <h1 className="text-[28px] leading-[1.1] font-medium tracking-[-0.03em]">
           Thinking Orbs
-          <span className="block text-muted-foreground">for AI Agents</span>
+          <span className="block text-muted-foreground">for AI Interfaces</span>
         </h1>
-        <p className="text-sm text-muted-foreground">A component library of agent status orbs for React. No dependencies, 3.5 KB gzipped.</p>
+        <p className="text-sm text-muted-foreground">A component library of animated AI status indicators for React. No dependencies, 3.8 KB gzipped.</p>
       </div>
       <Install />
       <Credit license={license} />
@@ -281,11 +250,8 @@ export function Hero({ license }: { license?: boolean }) {
   );
 }
 
-export type Mode = "dark" | "light";
-/** The page's wrapper classes: the palette hangs off `.pg[data-mode]`, set alongside. */
-export const theme = (mode: Mode) => `pg ${mode === "dark" ? "bg-black" : "bg-page"}`;
 
-/** GitHub stars and the theme switch, with Sponsor or the View all switch when the page has them. */
+/** GitHub stars and the theme switch, with the Playground link, Sponsor or the View all switch when the page has them. */
 export function TopBar({
   stars,
   mode,
@@ -293,6 +259,7 @@ export function TopBar({
   view,
   onView,
   sponsor,
+  playground,
   className = "",
 }: {
   stars: number | null;
@@ -301,10 +268,22 @@ export function TopBar({
   view?: "list" | "grid";
   onView?: (view: "list" | "grid") => void;
   sponsor?: boolean;
+  /** Show the Playground link; `"here"` lights it, for the playground itself. */
+  playground?: boolean | "here";
   className?: string;
 }) {
   return (
     <div className={`flex items-center gap-4 text-sm ${className}`}>
+      {playground && (
+        // Tablets and up: on a phone the row has no room, and the playground needs a wide screen anyway.
+        <Link
+          href="/playground"
+          aria-current={playground === "here" ? "page" : undefined}
+          className={`hidden transition-colors md:inline ${playground === "here" ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+        >
+          Playground
+        </Link>
+      )}
       {sponsor && (
         <a href="https://www.patreon.com/c/yogesharc" target="_blank" rel="noopener" className="text-muted-foreground transition-colors hover:text-foreground">
           Sponsor
@@ -345,24 +324,25 @@ export function TopBar({
   );
 }
 
-/** Orbs, Installation, Usage, with the section you're reading lit. */
-export function Toc({ className = "flex-col gap-2" }: { className?: string }) {
-  const [active, setActive] = useState(toc[0].id);
+/** Orbs, Installation, Usage, with the section you're reading lit. From another page, `base` points them back at the homepage. */
+export function Toc({ className = "flex-col gap-2", base = "" }: { className?: string; base?: string }) {
+  const [active, setActive] = useState<string | null>(base ? null : toc[0].id);
   useEffect(() => {
+    if (base) return;
     // The current section is the last one whose top has passed 40% down the viewport.
     const onScroll = () =>
       setActive(toc.findLast(({ id }) => document.getElementById(id)!.getBoundingClientRect().top <= innerHeight * 0.4)?.id ?? toc[0].id);
     onScroll();
     addEventListener("scroll", onScroll, { passive: true });
     return () => removeEventListener("scroll", onScroll);
-  }, []);
+  }, [base]);
   return (
     <nav aria-label="Contents">
       <ul className={`flex text-sm ${className}`}>
         {toc.map(({ id, label }) => (
           <li key={id}>
             <a
-              href={`#${id}`}
+              href={`${base}#${id}`}
               aria-current={active === id ? "location" : undefined}
               className={`transition-colors ${active === id ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
@@ -412,17 +392,6 @@ function Tools() {
 /** How far down the viewport a card has to cross to be picked: about a third, capped so tall screens don't push the cards far down. */
 const pickLine = () => Math.min(innerHeight * 0.35, 360);
 
-const media = (query: string) => ({
-  matches: () => matchMedia(query).matches,
-  subscribe: (cb: () => void) => {
-    const mq = matchMedia(query);
-    mq.addEventListener("change", cb);
-    return () => mq.removeEventListener("change", cb);
-  },
-});
-/** Widths where the chat sits beside the cards and scrolling writes the turn; below them it just shows the seed rows. */
-export const LG = media("(min-width: 64rem)");
-export const XL = media("(min-width: 80rem)");
 
 /**
  * The picked card: whichever crosses the pick line once the screen is `wide`. When a row holds
@@ -509,7 +478,7 @@ export function Docs({ className = "", llms }: { className?: string; llms?: bool
   return (
     <div className={`max-w-xl min-w-0 ${className}`}>
       <Guide id="installation" title="Installation">
-        <p>Add it to any project. The React orb needs nothing but React, and the plain JS one needs nothing at all.</p>
+        <p>Install Thinking Orbs from npm, or copy the React component into your project with shadcn. The React orb needs nothing but React, and the plain JS one needs nothing at all.</p>
         <div className="flex flex-col gap-2">
           <Tabs label="Install with" value={via} options={INSTALLS} onChange={setVia} />
           <Install command={INSTALLS.find((o) => o.id === via)?.command ?? COMMAND} />
@@ -517,13 +486,15 @@ export function Docs({ className = "", llms }: { className?: string; llms?: bool
         {via === "shadcn" && (
           <p>
             That copies the React source into <code className="font-mono text-foreground">components/</code>, yours to change,
-            so import it from <code className="font-mono text-foreground">@/components/orb</code>.
+            so import it from <code className="font-mono text-foreground">@/components/orb</code>. The extra shapes and renders
+            below are <code className="font-mono text-foreground">orb-shapes.json</code> and{" "}
+            <code className="font-mono text-foreground">orb-renders.json</code> beside it.
           </p>
         )}
       </Guide>
 
       <Guide id="usage" title="Usage">
-        <p>{lang === "react" ? "Import it and give it a state." : "Point it at any <svg> on the page and give it a state."}</p>
+        <p>{lang === "react" ? "Import the Orb component and give it a state, and optionally a variant." : "Point it at any <svg> on the page and give it a state, and optionally a variant."}</p>
         <div className="flex flex-col gap-2">
           <Tabs label="Language" value={lang} options={LANGS} onChange={setLang} />
           <Code>{lang === "react" ? USAGE : VANILLA}</Code>
@@ -554,12 +525,41 @@ export function Docs({ className = "", llms }: { className?: string; llms?: bool
             </tbody>
           </table>
         </div>
+        <h3 className="mt-4 font-medium text-foreground">Shapes and renders</h3>
+        <p>
+          The orb is a sphere of dots. Other shapes and ways of drawing it are opt-in, so only what you import lands in your bundle.
+          Try them all in the{" "}
+          <Link href="/playground" className={UNDERLINE}>
+            playground
+          </Link>
+          .
+        </p>
+        <Code>{lang === "react" ? EXTRAS : EXTRAS_VANILLA}</Code>
         {llms && (
           <a href="/llms.txt" target="_blank" className={`self-start ${UNDERLINE}`}>
             llms.txt
           </a>
         )}
       </Guide>
+    </div>
+  );
+}
+
+/**
+ * The row across the top of every shipped page: contents on the left, the tools centred (equal side
+ * columns keep them centred whatever sits beside them), then Playground, Sponsor and the switches.
+ * On phones the contents drop out and the tools move left. `page` says which page it's on.
+ */
+export function SiteHeader({ stars, mode, onMode, page = "home" }: { stars: number | null; mode: Mode; onMode: (mode: Mode) => void; page?: "home" | "playground" }) {
+  return (
+    <div className="z-10 mx-auto flex h-12 w-full max-w-[90rem] shrink-0 items-center justify-between gap-4 px-4 sm:px-8 md:grid md:grid-cols-[1fr_auto_1fr] xl:sticky xl:top-0">
+      <div className="hidden md:block">
+        <Toc className="gap-4" base={page === "home" ? "" : "/"} />
+      </div>
+      <div className="md:col-start-2">
+        <Tools />
+      </div>
+      <TopBar stars={stars} mode={mode} onMode={onMode} playground={page === "playground" ? "here" : true} sponsor className="justify-self-end" />
     </div>
   );
 }
@@ -575,17 +575,7 @@ export function Orbs({ stars }: { stars: number | null }) {
 
   return (
     <div data-mode={mode} className={`${theme(mode)} flex flex-1 flex-col`}>
-      {/* Contents, tools and switches; the equal side columns keep the tools centred whatever sits beside them. */}
-      <div className="z-10 mx-auto flex h-12 w-full max-w-[90rem] items-center justify-between gap-4 px-4 sm:px-8 md:grid md:grid-cols-[1fr_auto_1fr] xl:sticky xl:top-0">
-        {/* Phones drop the contents, since the row has no room for them, and the tools move to the left. */}
-        <div className="hidden md:block">
-          <Toc className="gap-4" />
-        </div>
-        <div className="md:col-start-2">
-          <Tools />
-        </div>
-        <TopBar stars={stars} mode={mode} onMode={setMode} sponsor className="justify-self-end" />
-      </div>
+      <SiteHeader stars={stars} mode={mode} onMode={setMode} />
 
       <div className="mx-auto flex w-full max-w-[90rem] flex-col gap-12 px-4 py-12 sm:px-8 xl:grid xl:grid-cols-[20rem_minmax(0,1fr)] xl:items-start xl:gap-x-12 xl:gap-y-0 xl:py-0">
         <header className="xl:sticky xl:top-12 xl:col-start-1 xl:row-start-1 xl:flex xl:h-[calc(100vh-3rem)] xl:items-center xl:pb-12">

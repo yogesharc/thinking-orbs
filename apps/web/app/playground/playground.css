@@ -1,0 +1,22 @@
+/* DialKit's panel without its chrome: no card, no header (title, versions, copy), and nothing to collapse. */
+.dialkit-panel-inner {
+  background: none;
+  border: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding: 0;
+}
+
+.dialkit-panel-header {
+  display: none;
+}
+
+/* DialKit's dark greys are tuned to sit on its own #212121 card; on the page's black they barely show. */
+.dialkit-root:not([data-theme="light"]) {
+  --dial-surface: rgba(255, 255, 255, 0.08);
+  --dial-surface-hover: rgba(255, 255, 255, 0.12);
+  --dial-surface-active: rgba(255, 255, 255, 0.18);
+  --dial-surface-subtle: rgba(255, 255, 255, 0.1);
+  --dial-border: rgba(255, 255, 255, 0.14);
+  --dial-border-hover: rgba(255, 255, 255, 0.26);
+}

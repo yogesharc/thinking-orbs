@@ -23,6 +23,14 @@
     "./vanilla": {
       "types": "./dist/orb-core.d.ts",
       "default": "./dist/orb-core.js"
+    },
+    "./shapes": {
+      "types": "./dist/shapes.d.ts",
+      "default": "./dist/shapes.js"
+    },
+    "./renders": {
+      "types": "./dist/renders.d.ts",
+      "default": "./dist/renders.js"
     }
   },
   "files": [
@@ -30,7 +38,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsc -p . && node -e \"for (const f of ['dist/orb.js', 'dist/orb.d.ts']) { const fs = require('fs'); fs.writeFileSync(f, fs.readFileSync(f, 'utf8').replace('\\\"./orb-core\\\"', '\\\"./orb-core.js\\\"')); }\"",
+    "build": "tsc -p . && node -e \"const fs = require('fs'); for (const f of fs.readdirSync('dist')) fs.writeFileSync('dist/' + f, fs.readFileSync('dist/' + f, 'utf8').replace('\\\"./orb-core\\\"', '\\\"./orb-core.js\\\"'));\"",
     "prepublishOnly": "pnpm build"
   },
   "peerDependencies": {

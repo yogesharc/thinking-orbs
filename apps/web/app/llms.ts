@@ -25,12 +25,30 @@ orb.pause(); // hold it on its frame
 orb.play(); // carry on
 orb.destroy(); // remove it`;
 
+/** The opt-in extras, in React and plain JS. */
+export const EXTRAS = `import { Orb } from "thinkingorbs";
+import { cube } from "thinkingorbs/shapes";
+import { halftone } from "thinkingorbs/renders";
+
+<Orb state="working" shape={cube} render={halftone} />`;
+
+export const EXTRAS_VANILLA = `import { mountOrb } from "thinkingorbs/vanilla";
+import { cube } from "thinkingorbs/shapes";
+import { halftone } from "thinkingorbs/renders";
+
+mountOrb(document.querySelector("svg"), { state: "working", shape: cube, render: halftone });`;
+
 /** `react` marks the props only the React component takes. */
 export const props = [
   { name: "state", type: "OrbState", fallback: `"base"`, note: "What the agent is doing." },
   { name: "variant", type: "OrbVariant", fallback: `"default"`, note: "Which look of that state." },
   { name: "size", type: "number", fallback: "20", note: "Width and height in px." },
   { name: "speed", type: "number", fallback: "1", note: "Speed multiplier." },
+  { name: "shape", type: "OrbShape", fallback: "—", note: "Another form, from thinkingorbs/shapes." },
+  { name: "render", type: "OrbRender", fallback: "—", note: "Another way to draw it, from thinkingorbs/renders." },
+  { name: "density", type: "number", fallback: "1", note: "Dot count multiplier." },
+  { name: "dotSize", type: "number", fallback: "1", note: "Dot size multiplier." },
+  { name: "tilt", type: "number", fallback: "20", note: "Viewing angle from above, in degrees." },
   { name: "paused", type: "boolean", fallback: "false", note: "Freezes the animation.", react: true },
   { name: "label", type: "string", fallback: "—", note: "Name for screen readers." },
   { name: "className", type: "string", fallback: "—", note: "Tint it with text-* classes.", react: true },
@@ -52,7 +70,7 @@ const code = (lang: string, src: string) => `\`\`\`${lang}\n${src}\n\`\`\``;
 
 export const LLMS = `# Thinking Orbs
 
-> Animated dotted-sphere status orbs for AI agents: one sphere, a state for each thing an agent does. Built to read at 20px, the size they sit at in a real interface.
+> Animated thinking orbs for AI agent UIs: an open-source React component library (plus plain JS) with a state for each thing an agent does, like thinking, searching and compacting. No dependencies, built to read at 20px.
 
 Website: https://thinkingorbs.com
 
@@ -87,6 +105,17 @@ All optional. \`paused\` and \`className\` are React only; \`mountOrb\` returns 
 ${props.map((p) => `| \`${p.name}\` | \`${p.type}\` | ${p.fallback === "—" ? "—" : `\`${p.fallback}\``} | ${p.note} |`).join("\n")}
 
 The orb draws in the text color (\`currentColor\`). With reduced motion it holds still.
+
+## Shapes and renders
+
+The orb is a sphere of dots. Other shapes and ways of drawing it are opt-in modules, so only what you import lands in the bundle. With shadcn, add them as \`https://thinkingorbs.com/r/orb-shapes.json\` and \`https://thinkingorbs.com/r/orb-renders.json\`.
+
+${code("tsx", EXTRAS)}
+
+- \`thinkingorbs/shapes\`: \`cube\`, \`octahedron\`, \`tetrahedron\`, \`torus\`.
+- \`thinkingorbs/renders\`: \`dashes\`, \`squares\`, \`crosses\`, \`mesh\`, \`halftone\`, \`lines\`, \`verticalLines\`.
+
+Not every state suits every shape or render. A custom shape is an \`OrbShape\`, \`{ points(count, look) }\` returning [x, y, z] points inside the unit sphere; a custom render is an \`OrbRender\`, whose \`mount\` makes SVG elements and returns \`dot(i, x, y, r, a, dx, dy)\`. Define either outside the component.
 
 ## States
 

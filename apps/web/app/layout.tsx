@@ -12,9 +12,17 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const title = "Thinking Orbs - AI Status Indicator Components for React";
+const description =
+  "Thinking Orbs is a React component library of animated orbs for AI: thinking, searching, compacting and more status indicators. Free and open source.";
+
 export const metadata: Metadata = {
-  title: "Thinking Orbs for AI Agents",
-  description: "Animated dotted-sphere status orbs for AI agents.",
+  metadataBase: new URL("https://thinkingorbs.com"),
+  title,
+  description,
+  alternates: { canonical: "/" },
+  openGraph: { title, description, url: "/", siteName: "Thinking Orbs", type: "website" },
+  twitter: { card: "summary_large_image", title, description, creator: "@yogesharc" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -26,6 +26,24 @@ const hash = (n: number) => {
   return s - Math.floor(s);
 };
 const dist2 = (a: number[], b: number[]) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
+/** The k points nearest pts[i], nearest first: one pass keeping a short sorted list, not a sort of them all. */
+export const nearest = (pts: number[][], i: number, k: number) => {
+  const idx: number[] = [], d: number[] = [];
+  pts.forEach((q, j) => {
+    if (j === i) return;
+    const e = dist2(pts[i], q);
+    if (idx.length === k && e >= d[k - 1]) return;
+    let at = Math.min(idx.length, k - 1);
+    while (at > 0 && d[at - 1] > e) at--;
+    idx.splice(at, 0, j);
+    d.splice(at, 0, e);
+    if (idx.length > k) {
+      idx.pop();
+      d.pop();
+    }
+  });
+  return idx;
+};
 
 /** Time for one full turn, in ms. Retrying's two set their own pace in `yawOf`. */
 const PERIOD: Record<Look, number> = {
@@ -134,23 +152,73 @@ function lensAt(t: number) {
  */
 const HOP = 220, TAIL = 5, REACH = 24, WALK = 16;
 
-/** Where the dots sit on a unit sphere: a Fibonacci spiral, or for Background · Spiral, eight arms. */
-function distribute(state: Look, count: number): number[][] {
-  if (state === "background-spiral") {
-    // Arms wound pole to pole, turning a radian of longitude per radian of latitude. Toward the
-    // poles every other arm stops where they'd crowd, then every other of those, so the caps fill without clotting.
-    const at = (lat: number, lon: number) => [Math.cos(lat) * Math.cos(lon), Math.sin(lat), Math.cos(lat) * Math.sin(lon)];
-    const g = Math.sqrt((4 * Math.PI) / count), arms = 8, along = 0.6 * g;
-    return Array.from({ length: arms }, (_, m) => {
-      const room = m ? m & -m : arms;
-      const lim = Math.min((85 * Math.PI) / 180, Math.acos(Math.min(1, (g * arms) / (TAU * room))));
-      const out: number[][] = [];
-      // Each arm starts at its own offset so the dots don't line up into rings across arms.
-      for (let lat = -lim + ((m * 0.618) % 1) * along; lat <= lim; lat += along / Math.sqrt(1 + Math.cos(lat) ** 2))
-        out.push(at(lat, (m / arms) * TAU - lat));
-      return out;
-    }).flat();
-  }
+/**
+ * A form for the dots, from `thinkingorbs/shapes` or your own. `points` returns [x, y, z] points inside
+ * the unit sphere, which fills the orb: it's given the number of dots to aim for and the look, like
+ * "working" or "background-spiral", so a look can lay its points out its own way.
+ */
+export type OrbShape = {
+  points: (count: number, look: string) => number[][];
+  /** Draws it this many times larger. A solid touches the unit sphere only at its corners, so looks small at 1. */
+  scale?: number;
+  /** Degrees it's seen from further above, on top of `tilt`. */
+  tip?: number;
+};
+
+/**
+ * How the dots are drawn, from `thinkingorbs/renders` or your own. `mount` makes its elements with
+ * `make`, which appends them to the orb's svg, where they fill in `currentColor`. It returns `dot`,
+ * called each frame for every point with where it lands in px, its radius and opacity, and which way
+ * the spin carries it on screen; then `frame`, once they're all placed. `radius` is a dot's at rest.
+ */
+export type OrbRender = {
+  mount: (orb: { make: (tag: string) => SVGElement; pts: number[][]; size: number; radius: number }) => {
+    dot: (i: number, x: number, y: number, r: number, a: number, dx: number, dy: number) => void;
+    frame?: () => void;
+  };
+  /** Draws a flat picture over the orb rather than dots in space: no tilt, and Working's ring runs straight down. */
+  flat?: boolean;
+};
+
+/** The orb's own look: a circle per dot. No dot drops below 0.45px, or it renders as a grey haze. */
+const DOTS: OrbRender = {
+  mount: ({ make, pts }) => {
+    const els = pts.map(() => make("circle"));
+    return {
+      dot(i, x, y, r, a) {
+        const el = els[i];
+        el.setAttribute("cx", x.toFixed(2));
+        el.setAttribute("cy", y.toFixed(2));
+        el.setAttribute("r", Math.max(0.45, r).toFixed(2));
+        el.setAttribute("fill-opacity", a.toFixed(2));
+      },
+    };
+  },
+};
+
+/**
+ * Background · Spiral's eight arms, wound pole to pole, turning a radian of longitude per radian of
+ * latitude. Toward the poles every other arm stops where they'd crowd, then every other of those,
+ * so the caps fill without clotting.
+ */
+function arms(count: number): number[][] {
+  const at = (lat: number, lon: number) => [Math.cos(lat) * Math.cos(lon), Math.sin(lat), Math.cos(lat) * Math.sin(lon)];
+  const g = Math.sqrt((4 * Math.PI) / count), n = 8, along = 0.6 * g;
+  return Array.from({ length: n }, (_, m) => {
+    const room = m ? m & -m : n;
+    const lim = Math.min((85 * Math.PI) / 180, Math.acos(Math.min(1, (g * n) / (TAU * room))));
+    const out: number[][] = [];
+    // Each arm starts at its own offset so the dots don't line up into rings across arms.
+    for (let lat = -lim + ((m * 0.618) % 1) * along; lat <= lim; lat += along / Math.sqrt(1 + Math.cos(lat) ** 2))
+      out.push(at(lat, (m / n) * TAU - lat));
+    return out;
+  }).flat();
+}
+
+/** Where the dots sit: on a unit sphere, a Fibonacci spiral, or for Background · Spiral, eight arms. */
+function distribute(state: Look, count: number, shape?: OrbShape): number[][] {
+  if (shape) return shape.points(count, state);
+  if (state === "background-spiral") return arms(count);
   return Array.from({ length: count }, (_, i) => {
     const y = 1 - (2 * (i + 0.5)) / count, r = Math.sqrt(1 - y * y), th = i * GOLDEN;
     return [r * Math.cos(th), y, r * Math.sin(th)];
@@ -164,6 +232,19 @@ export type OrbOptions = OrbLook & {
   speed?: number;
   /** What screen readers announce, like "Thinking". Without one the orb is hidden from them. */
   label?: string;
+  /**
+   * The form the dots sit on, a sphere without one: a shape from `thinkingorbs/shapes`, or your own, as
+   * an `OrbShape` or just its `points` function. Define it outside your component, or the orb redraws every render.
+   */
+  shape?: OrbShape | OrbShape["points"];
+  /** How the dots are drawn, circles without one: a render from `thinkingorbs/renders`, or your own. */
+  render?: OrbRender;
+  /** How many dots, as a multiple of the tuned count. */
+  density?: number;
+  /** How big each dot is, as a multiple of the tuned size. */
+  dotSize?: number;
+  /** How far it's seen from above, in degrees: 0 side on, 90 straight down. Tuned to 20. */
+  tilt?: number;
 };
 
 /**
@@ -171,7 +252,10 @@ export type OrbOptions = OrbLook & {
  * and `play()` carries on. The orb draws in `currentColor`, so the svg's CSS `color` tints it.
  * With reduced motion it holds still. Needs a browser: call it once the svg is on the page.
  */
-export function mountOrb(svg: SVGSVGElement, { state: which = "base", variant, size = 20, speed = 1, label }: OrbOptions = {}) {
+export function mountOrb(
+  svg: SVGSVGElement,
+  { state: which = "base", variant, size = 20, speed = 1, label, shape, render = DOTS, density = 1, dotSize = 1, tilt = 20 }: OrbOptions = {},
+) {
   // A variant the state doesn't have (from plain JS, say) falls back to its default.
   const own = variant !== "default" && (VARIANTS[which] as readonly string[]).includes(variant ?? "");
   const state = (own ? `${which}-${variant}` : which) as Look;
@@ -188,22 +272,19 @@ export function mountOrb(svg: SVGSVGElement, { state: which = "base", variant, s
   }
   // Background's orb has a quarter of the dots, so each comes out twice the size.
   const dens = state === "background" ? 1 : 4;
-  const count = Math.round(size * dens);
+  const count = Math.max(8, Math.round(size * dens * density));
   // Dots shrink as they multiply, so the sphere's coverage holds steady.
-  const c = size / 2, R = c * 0.8, rs = (size / 64) ** 0.6 * (0.72 * Math.sqrt(4 / dens));
-  const pts = distribute(state, count);
+  const form = typeof shape === "function" ? { points: shape } : shape;
+  const c = size / 2, R = c * 0.8 * (form?.scale ?? 1), rs = (size / 64) ** 0.6 * (0.72 * Math.sqrt(4 / dens)) * dotSize;
+  const pts = distribute(state, count, form);
   // SVG, not canvas: vectors stay sharp under pinch zoom. One ink blends the same in any order, so no depth sort.
-  const dots = pts.map(() => svg.appendChild(document.createElementNS("http://www.w3.org/2000/svg", "circle")));
+  const make = (tag: string) => svg.appendChild(document.createElementNS("http://www.w3.org/2000/svg", tag));
+  const drawer = render.mount({ make: make as (tag: string) => SVGElement, pts, size, radius: rs }), flat = !!render.flat;
   const reasoning = state === "reasoning" || state === "reasoning-twins";
   const compacting = state === "compacting" || state === "compacting-fuse";
   // Reasoning: each dot's REACH nearest neighbours for the walk to hop between, and each walker's walk so far (head last).
   const near = reasoning
-    ? pts.map((p, i) =>
-        [...pts.keys()]
-          .filter((j) => j !== i)
-          .sort((a, b) => dist2(p, pts[a]) - dist2(p, pts[b]))
-          .slice(0, REACH),
-      )
+    ? pts.map((_, i) => nearest(pts, i, REACH))
     : [];
   const walks: number[][] = Array.from({ length: state === "reasoning-twins" ? 2 : 1 }, () => []);
   let hops = 0;
@@ -212,7 +293,7 @@ export function mountOrb(svg: SVGSVGElement, { state: which = "base", variant, s
     const period = PERIOD[state], yaw = yawOf(state, t);
     // Working · Gyro's axis circles every 5s like a spinning top's, tipping ±10° toward you and leaning ±12° side to side.
     const gyro = state === "working-gyro" ? (t / 5000) * TAU : null;
-    const pitch = ((20 + (gyro === null ? 0 : 10 * Math.cos(gyro))) * Math.PI) / 180;
+    const pitch = (((flat ? 0 : tilt) + (form?.tip ?? 0) + (gyro === null ? 0 : 10 * Math.cos(gyro))) * Math.PI) / 180;
     const roll = gyro === null ? 0 : ((12 * Math.sin(gyro)) * Math.PI) / 180, sr = Math.sin(roll), cr = Math.cos(roll);
     const sy = Math.sin(yaw), cy = Math.cos(yaw), st = Math.sin(pitch), ct = Math.cos(pitch);
     // How far a dot faces you right now, which the walk steers by.
@@ -283,12 +364,15 @@ export function mountOrb(svg: SVGSVGElement, { state: which = "base", variant, s
       const [ly, lc] = tw ? [Math.sin(turn), Math.cos(turn)] : [sy, cy];
       const z1 = -x * ly + z * lc;
       let vx = x * lc + z * ly, vy = y * ct - z1 * st;
+      // Which way the spin carries this dot across the screen, for renders that draw along it.
+      const sx = z1, sy2 = vx * st;
       const vz = y * st + z1 * ct, d = (vz + 1) / 2;
       let r = (0.5 + 1.4 * d) * rs;
       // Opacity ramps from 0 just behind the rim to 1 at the front, so the back fades instead of leaving a haze.
       let a = Math.max(0, (d - 0.3) / 0.7);
       if (lens) {
-        const ang = Math.acos(Math.min(1, vx * lens[0] + vy * lens[1] + vz * lens[2]));
+        // By direction, not position: a solid's dots sit at different distances from the centre.
+        const ang = Math.acos(Math.min(1, (vx * lens[0] + vy * lens[1] + vz * lens[2]) / Math.hypot(vx, vy, vz)));
         const w = ang < LENS ? (1 - (ang / LENS) ** 2) ** 2 : 0;
         // Dim what's outside the lens. At 24px and under, dots are ~1px and growth alone barely reads, so it enlarges harder.
         a *= 1 - 0.55 * (1 - w);
@@ -323,7 +407,8 @@ export function mountOrb(svg: SVGSVGElement, { state: which = "base", variant, s
         // Every 1.7s a ring of light runs down the sphere over 1.2s, through the back as well as the
         // front. What it's passed pulls in 8% and shrinks 15%, then lets go over 0.5s.
         const u = t % 1700, at = 1.3 - 2.6 * ease(Math.min(1, u / 1200));
-        const q = vx * RING_AXIS[0] + vy * RING_AXIS[1] + vz * RING_AXIS[2];
+        // Halftone and Lines are flat pictures, so there the ring runs straight down rather than leaning into depth.
+        const q = flat ? vy : vx * RING_AXIS[0] + vy * RING_AXIS[1] + vz * RING_AXIS[2];
         const g = u < 1200 ? Math.exp(-(((q - at) / 0.2) ** 2)) : 0;
         r *= 1 + 0.6 * g;
         a += (1 - a) * g;
@@ -358,7 +443,7 @@ export function mountOrb(svg: SVGSVGElement, { state: which = "base", variant, s
       if (state === "waiting") {
         // A sharp head and a long fading tail, lit round the back too, over a sphere at 50%.
         // Its width is measured along the surface, so it keeps its size away from the equator.
-        const lat = Math.asin(y), lon = Math.atan2(z, x);
+        const lat = Math.asin(y / Math.hypot(x, y, z)), lon = Math.atan2(z, x);
         const off = Math.atan2(Math.sin(lon - head), Math.cos(lon - head)), along = off * Math.cos(lat);
         const g =
           Math.exp(-(((lat - headLat(t + off / ahead)) / 0.28) ** 2)) * Math.exp(-((along / (off * ahead > 0 ? 0.12 : 1)) ** 2));
@@ -367,13 +452,9 @@ export function mountOrb(svg: SVGSVGElement, { state: which = "base", variant, s
         r *= 1 + 1.1 * w;
       }
       if (roll) [vx, vy] = [vx * cr - vy * sr, vx * sr + vy * cr];
-      const dot = dots[i];
-      dot.setAttribute("cx", (c + vx * R).toFixed(2));
-      dot.setAttribute("cy", (c - vy * R).toFixed(2));
-      // No dot drops below 0.45px, or it renders as a grey haze.
-      dot.setAttribute("r", Math.max(0.45, r).toFixed(2));
-      dot.setAttribute("fill-opacity", a.toFixed(2));
+      drawer.dot(i, c + vx * R, c - vy * R, r, a, sx, -sy2);
     });
+    drawer.frame?.();
   };
 
   const look = `${state}@${speed}`;

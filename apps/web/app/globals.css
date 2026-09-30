@@ -7,6 +7,8 @@
 @theme {
   --color-page: oklch(0.24 0 0);
   --color-muted-foreground: oklch(0.708 0 0);
+  --color-fill: oklch(0.21 0 0);
+  --color-fill-hover: oklch(0.27 0 0);
 }
 
 :root {

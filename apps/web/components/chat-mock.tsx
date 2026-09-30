@@ -61,7 +61,7 @@ export function ChatMock({
 
   return (
     <div className={`flex w-full flex-col gap-3 text-sm leading-[1.65] ${className}`}>
-      <p className="max-w-[85%] shrink-0 self-end rounded-xl bg-foreground/[0.08] px-3 py-2">
+      <p className="max-w-[85%] shrink-0 self-end rounded-xl bg-fill px-3 py-2">
         The login page keeps redirecting to itself. Can you fix it?
       </p>
       {/* justify-end pushes any overflow out of the top, so the oldest rows are the ones cut off. */}

@@ -8,7 +8,7 @@ out/
 next-env.d.ts
 
 # Local-only: design tools and experiments that stay on this machine. Only the homepage ships.
-/apps/web/app/playground/
+/apps/web/app/playground-old/
 /apps/web/app/motion/
 /apps/web/app/status/
 /apps/web/prototype/

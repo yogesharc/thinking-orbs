@@ -7,6 +7,9 @@
   --color-muted-foreground: oklch(0.708 0 0);
   --color-border: oklch(1 0 0 / 10%);
   --color-page: oklch(0.24 0 0);
+  /* The one grey for small filled things: buttons, the active tab, the user's bubble, code. */
+  --color-fill: oklch(0.21 0 0);
+  --color-fill-hover: oklch(0.27 0 0);
   --knob: oklch(0.42 0 0);
   /* The page's colours, resolved here so `.proto` (which re-declares them) can still use them in full screen. */
   --pg-bg: var(--color-page);
@@ -67,7 +70,9 @@ html::-webkit-scrollbar-thumb {
   --foreground: oklch(0.145 0 0);
   --color-muted-foreground: oklch(0.556 0 0);
   --color-border: oklch(0 0 0 / 10%);
-  --color-page: oklch(1 0 0);
+  --color-page: #f9f9fa;
+  --color-fill: #e6e6e6;
+  --color-fill-hover: #dbdbdb;
   --knob: oklch(1 0 0);
   color-scheme: light;
 }
