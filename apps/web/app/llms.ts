@@ -3,7 +3,7 @@
  * /llms.txt, so an agent reads the same thing a person does.
  */
 
-export const REPO = "yogesharc/thinkingorbs";
+export const REPO = "yogesharc/thinking-orbs";
 
 export const USAGE = `import { Orb } from "@yogesharc/thinking-orbs";
 
