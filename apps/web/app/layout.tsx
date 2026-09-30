@@ -17,7 +17,7 @@ const description =
   "Thinking Orbs is a React component library of well-crafted, animated orbs for AI: thinking, searching, compacting and more status indicators. Free, open source.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://thinkingorbs.com"),
+  metadataBase: new URL("https://www.thinkingorbs.com"),
   title,
   description,
   alternates: { canonical: "/" },
