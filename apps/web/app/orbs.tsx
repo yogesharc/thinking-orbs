@@ -259,7 +259,7 @@ export function Hero({ license }: { license?: boolean }) {
           Thinking Orbs
           <span className="block text-muted-foreground">for AI Interfaces</span>
         </h1>
-        <p className="text-sm text-muted-foreground">A component library of animated AI status indicators for React. No dependencies, 3.8 KB gzipped.</p>
+        <p className="text-sm text-muted-foreground">A component library of well-crafted, animated AI status indicators for React. No dependencies, 3.8&nbsp;KB gzipped.</p>
       </div>
       <Install />
       <div className="flex items-center gap-3">
