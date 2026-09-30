@@ -14,6 +14,7 @@
   ],
   "homepage": "https://thinkingorbs.com",
   "author": "Yogesh (https://yogesharc.com)",
+  "license": "MIT",
   "type": "module",
   "exports": {
     ".": {
@@ -38,7 +39,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsc -p . && node -e \"const fs = require('fs'); for (const f of fs.readdirSync('dist')) fs.writeFileSync('dist/' + f, fs.readFileSync('dist/' + f, 'utf8').replace('\\\"./orb-core\\\"', '\\\"./orb-core.js\\\"'));\"",
+    "build": "tsc -p . && node -e \"const fs = require('fs'); for (const f of fs.readdirSync('dist')) fs.writeFileSync('dist/' + f, fs.readFileSync('dist/' + f, 'utf8').replaceAll('\\\"./orb-core\\\"', '\\\"./orb-core.js\\\"'));\"",
     "prepublishOnly": "pnpm build"
   },
   "peerDependencies": {

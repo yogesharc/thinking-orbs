@@ -37,5 +37,7 @@ export function Orb({
     if (paused) orb.current!.pause();
     else orb.current!.play();
   }, [paused, state, variant, size, speed, label, shape, render, density, dotSize, tilt]);
-  return <svg ref={ref} width={size} height={size} viewBox={`0 0 ${size} ${size}`} fill="currentColor" className={className} />;
+  // The same a11y attributes mountOrb sets, so the server's HTML has them before it runs.
+  const a11y = label ? { role: "img", "aria-label": label } : { "aria-hidden": true };
+  return <svg ref={ref} width={size} height={size} viewBox={`0 0 ${size} ${size}`} fill="currentColor" className={className} {...a11y} />;
 }

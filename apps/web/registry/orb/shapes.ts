@@ -1,3 +1,6 @@
+// Client, so a Server Component can hand these to <Orb>: they're objects with functions in them.
+"use client";
+
 import type { OrbShape } from "./orb-core";
 
 // Extra forms for the orb's `shape` prop: `<Orb shape={cube} />`. Each fits inside the unit sphere and

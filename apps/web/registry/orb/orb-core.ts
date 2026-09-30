@@ -26,22 +26,28 @@ const hash = (n: number) => {
   return s - Math.floor(s);
 };
 const dist2 = (a: number[], b: number[]) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
-/** The k points nearest pts[i], nearest first: one pass keeping a short sorted list, not a sort of them all. */
+/**
+ * The k points nearest pts[i], nearest first: one pass keeping a short sorted list, not a sort of them all.
+ * Plain loops, as it runs once per dot at mount. @internal Shared with `renders.ts`, not part of the API.
+ */
 export const nearest = (pts: number[][], i: number, k: number) => {
-  const idx: number[] = [], d: number[] = [];
-  pts.forEach((q, j) => {
-    if (j === i) return;
-    const e = dist2(pts[i], q);
-    if (idx.length === k && e >= d[k - 1]) return;
-    let at = Math.min(idx.length, k - 1);
-    while (at > 0 && d[at - 1] > e) at--;
-    idx.splice(at, 0, j);
-    d.splice(at, 0, e);
-    if (idx.length > k) {
-      idx.pop();
-      d.pop();
+  const idx: number[] = [], d: number[] = [], p = pts[i];
+  for (let j = 0; j < pts.length; j++) {
+    if (j === i) continue;
+    const e = dist2(p, pts[j]);
+    let at = idx.length;
+    if (at === k) {
+      if (e >= d[k - 1]) continue;
+      at--;
     }
-  });
+    while (at > 0 && d[at - 1] > e) {
+      idx[at] = idx[at - 1];
+      d[at] = d[at - 1];
+      at--;
+    }
+    idx[at] = j;
+    d[at] = e;
+  }
   return idx;
 };
 
@@ -183,14 +189,17 @@ export type OrbRender = {
 /** The orb's own look: a circle per dot. No dot drops below 0.45px, or it renders as a grey haze. */
 const DOTS: OrbRender = {
   mount: ({ make, pts }) => {
-    const els = pts.map(() => make("circle"));
+    const els = pts.map(() => make("circle")), hidden = new Uint8Array(pts.length);
     return {
       dot(i, x, y, r, a) {
-        const el = els[i];
+        const el = els[i], o = a.toFixed(2);
+        // A hidden dot stays hidden wherever it is, so skip it: about a third of a sphere, every frame.
+        if (o === "0.00" && hidden[i]) return;
+        hidden[i] = +(o === "0.00");
         el.setAttribute("cx", x.toFixed(2));
         el.setAttribute("cy", y.toFixed(2));
         el.setAttribute("r", Math.max(0.45, r).toFixed(2));
-        el.setAttribute("fill-opacity", a.toFixed(2));
+        el.setAttribute("fill-opacity", o);
       },
     };
   },
@@ -254,9 +263,10 @@ export type OrbOptions = OrbLook & {
  */
 export function mountOrb(
   svg: SVGSVGElement,
-  { state: which = "base", variant, size = 20, speed = 1, label, shape, render = DOTS, density = 1, dotSize = 1, tilt = 20 }: OrbOptions = {},
+  { state: asked, variant, size = 20, speed = 1, label, shape, render = DOTS, density = 1, dotSize = 1, tilt = 20 }: OrbOptions = {},
 ) {
-  // A variant the state doesn't have (from plain JS, say) falls back to its default.
+  // A state that doesn't exist (from plain JS, say) falls back to base, and a variant the state doesn't have to its default.
+  const which: OrbState = asked && Object.hasOwn(VARIANTS, asked) ? asked : "base";
   const own = variant !== "default" && (VARIANTS[which] as readonly string[]).includes(variant ?? "");
   const state = (own ? `${which}-${variant}` : which) as Look;
   const attrs = { width: size, height: size, viewBox: `0 0 ${size} ${size}`, fill: "currentColor" };
@@ -280,7 +290,8 @@ export function mountOrb(
   // SVG, not canvas: vectors stay sharp under pinch zoom. One ink blends the same in any order, so no depth sort.
   const make = (tag: string) => svg.appendChild(document.createElementNS("http://www.w3.org/2000/svg", tag));
   const drawer = render.mount({ make: make as (tag: string) => SVGElement, pts, size, radius: rs }), flat = !!render.flat;
-  const reasoning = state === "reasoning" || state === "reasoning-twins";
+  // A walk needs somewhere to go: with under two dots, Reasoning just spins.
+  const reasoning = (state === "reasoning" || state === "reasoning-twins") && pts.length > 1;
   const compacting = state === "compacting" || state === "compacting-fuse";
   // Reasoning: each dot's REACH nearest neighbours for the walk to hop between, and each walker's walk so far (head last).
   const near = reasoning
@@ -324,7 +335,8 @@ export function mountOrb(
               best = k;
             }
           });
-          walk.push(best);
+          // With only a handful of dots every neighbour can be recent, so it hops back to the nearest.
+          walk.push(best < 0 ? near[from][0] : best);
           if (walk.length > WALK) walk.shift();
         });
       }
@@ -443,7 +455,7 @@ export function mountOrb(
       if (state === "waiting") {
         // A sharp head and a long fading tail, lit round the back too, over a sphere at 50%.
         // Its width is measured along the surface, so it keeps its size away from the equator.
-        const lat = Math.asin(y / Math.hypot(x, y, z)), lon = Math.atan2(z, x);
+        const lat = Math.asin(y / (Math.hypot(x, y, z) || 1)), lon = Math.atan2(z, x);
         const off = Math.atan2(Math.sin(lon - head), Math.cos(lon - head)), along = off * Math.cos(lat);
         const g =
           Math.exp(-(((lat - headLat(t + off / ahead)) / 0.28) ** 2)) * Math.exp(-((along / (off * ahead > 0 ? 0.12 : 1)) ** 2));
@@ -461,8 +473,8 @@ export function mountOrb(
   draw(tick(look, performance.now(), speed));
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   // Only orbs on screen redraw; a page of them off screen would otherwise cost every frame.
-  let visible = true, raf = 0;
-  const io = new IntersectionObserver(([e]) => (visible = e.isIntersecting));
+  let visible = true, raf = 0, dead = false;
+  const io = new IntersectionObserver((es) => (visible = es[es.length - 1].isIntersecting));
   io.observe(svg);
   function frame(now: number) {
     const t = tick(look, now, speed);
@@ -475,13 +487,14 @@ export function mountOrb(
     raf = 0;
   };
   const play = () => {
-    if (!raf && !still) raf = requestAnimationFrame(frame);
+    if (!raf && !still && !dead) raf = requestAnimationFrame(frame);
   };
   play();
   return {
     pause,
     play,
     destroy() {
+      dead = true;
       pause();
       io.disconnect();
       svg.replaceChildren();

@@ -1,3 +1,6 @@
+// Client, so a Server Component can hand these to <Orb>: they're objects with functions in them.
+"use client";
+
 import { nearest, type OrbRender } from "./orb-core";
 
 // Extra ways to draw the orb for its `render` prop: `<Orb render={halftone} />`. Import only the ones you use.
@@ -71,15 +74,22 @@ export const mesh: OrbRender = {
       return el;
     });
     const els = pts.map(() => make("circle")), at = pts.map(() => [0, 0, 0]);
+    // What was hidden last frame, joints then edges: hidden stays hidden wherever it moves, so those skip their writes.
+    const hid = new Uint8Array(pts.length), hidEdge = new Uint8Array(pairs.length);
     return {
       dot(i, x, y, r, a) {
         at[i] = [x, y, a];
+        const off = a < 0.005;
+        if (off && hid[i]) return;
+        hid[i] = +off;
         set(els[i], { cx: x, cy: y, r: min(r) * 0.4, "fill-opacity": a });
       },
       frame() {
         pairs.forEach(([i, j], e) => {
-          const [x1, y1, a1] = at[i], [x2, y2, a2] = at[j];
-          set(edges[e], { x1, y1, x2, y2, "stroke-opacity": 0.85 * Math.min(a1, a2) });
+          const [x1, y1, a1] = at[i], [x2, y2, a2] = at[j], o = 0.85 * Math.min(a1, a2), off = o < 0.005;
+          if (off && hidEdge[e]) return;
+          hidEdge[e] = +off;
+          set(edges[e], { x1, y1, x2, y2, "stroke-opacity": o });
         });
       },
     };
@@ -169,6 +179,6 @@ const striped = (vertical: boolean): OrbRender => ({
 });
 
 /** Horizontal lines. */
-export const lines = striped(false);
+export const lines = /* @__PURE__ */ striped(false);
 /** Vertical lines. */
-export const verticalLines = striped(true);
+export const verticalLines = /* @__PURE__ */ striped(true);
