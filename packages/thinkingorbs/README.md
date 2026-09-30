@@ -3,11 +3,11 @@
 Animated dotted-sphere status orbs for AI agents: one sphere, a state for each thing an agent does. See them all at [thinkingorbs.com](https://thinkingorbs.com).
 
 ```bash
-npm i thinkingorbs
+npm i @yogesharc/thinking-orbs
 ```
 
 ```tsx
-import { Orb } from "thinkingorbs";
+import { Orb } from "@yogesharc/thinking-orbs";
 
 <span className="flex items-center gap-2">
   <Orb state="reasoning" />
@@ -41,15 +41,15 @@ It's a client component with no dependencies beyond React 18+. With `prefers-red
 The orb is a sphere of dots. Other shapes and ways of drawing it are opt-in, so they only land in your bundle if you import them:
 
 ```tsx
-import { Orb } from "thinkingorbs";
-import { cube } from "thinkingorbs/shapes";
-import { halftone } from "thinkingorbs/renders";
+import { Orb } from "@yogesharc/thinking-orbs";
+import { cube } from "@yogesharc/thinking-orbs/shapes";
+import { halftone } from "@yogesharc/thinking-orbs/renders";
 
 <Orb state="working" shape={cube} render={halftone} />
 ```
 
-- `thinkingorbs/shapes`: `cube`, `octahedron`, `tetrahedron`, `torus`.
-- `thinkingorbs/renders`: `dashes` (strokes along the spin), `squares`, `crosses`, `mesh` (each dot joined to its nearest), and flat screens toned by the orb beneath: `halftone` dots, `lines` and `verticalLines`, like an engraving.
+- `@yogesharc/thinking-orbs/shapes`: `cube`, `octahedron`, `tetrahedron`, `torus`.
+- `@yogesharc/thinking-orbs/renders`: `dashes` (strokes along the spin), `squares`, `crosses`, `mesh` (each dot joined to its nearest), and flat screens toned by the orb beneath: `halftone` dots, `lines` and `verticalLines`, like an engraving.
 
 Not every state suits every shape or render; try them at [thinkingorbs.com/playground](https://thinkingorbs.com/playground).
 
@@ -58,7 +58,7 @@ Your own shape is an `OrbShape`: `{ points(count, look) }` returning `[x, y, z]`
 ## Without React
 
 ```js
-import { mountOrb } from "thinkingorbs/vanilla";
+import { mountOrb } from "@yogesharc/thinking-orbs/vanilla";
 
 // Draws into any <svg> on the page, in its CSS color. Takes the same options as the props, minus paused and className.
 const orb = mountOrb(document.querySelector("svg"), { state: "reasoning", label: "Thinking" });

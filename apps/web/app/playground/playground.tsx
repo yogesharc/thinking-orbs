@@ -54,14 +54,14 @@ const jsx = (props: Record<string, string | number | undefined>, shape: string, 
   const attrs = Object.entries(props)
     .filter(([k, val]) => val !== undefined && val !== ORB_DEFAULTS[k])
     .map(([k, val]) => (typeof val === "string" ? `${k}="${val}"` : `${k}={${val}}`));
-  const imports = ['import { Orb } from "thinkingorbs";'];
+  const imports = ['import { Orb } from "@yogesharc/thinking-orbs";'];
   if (shape !== "sphere") {
     attrs.push(`shape={${shape}}`);
-    imports.push(`import { ${shape} } from "thinkingorbs/shapes";`);
+    imports.push(`import { ${shape} } from "@yogesharc/thinking-orbs/shapes";`);
   }
   if (render !== "dots") {
     attrs.push(`render={${render}}`);
-    imports.push(`import { ${render} } from "thinkingorbs/renders";`);
+    imports.push(`import { ${render} } from "@yogesharc/thinking-orbs/renders";`);
   }
   if (color) attrs.push(`className="text-[${color}]"`);
   return `${imports.join("\n")}\n\n<Orb ${attrs.join(" ")} />`;

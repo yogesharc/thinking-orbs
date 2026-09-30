@@ -17,26 +17,49 @@ const SEED: ChatRow[] = [
   { verb: "Bash", target: "pnpm test" },
 ];
 
-const COMMAND = "npm i thinkingorbs";
+const COMMAND = "npm i @yogesharc/thinking-orbs";
 
-/** The install command, copied on click, beside a button that copies the agent prompt instead. */
-function Install({ command = COMMAND }: { command?: string }) {
-  const [copied, setCopied] = useState<"command" | "prompt" | null>(null);
-  const copy = (what: "command" | "prompt") =>
-    navigator.clipboard.writeText(what === "command" ? command : LLMS).then(() => {
-      setCopied(what);
-      setTimeout(() => setCopied(null), 1500);
+/** Copies `text` to the clipboard, and whether it just did, for a "Copied" that lasts 1.5s. */
+function useCopy(text: string) {
+  const [copied, setCopied] = useState(false);
+  const copy = () =>
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
     });
+  return [copied, copy] as const;
+}
 
+/** A button that copies the agent prompt: the docs as markdown. */
+function CopyPrompt({ className = "" }: { className?: string }) {
+  const [copied, copy] = useCopy(LLMS);
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      aria-label="Copy a prompt for your agent"
+      className={`w-[6.25rem] shrink-0 rounded-lg bg-fill py-1 text-sm text-foreground transition-colors hover:bg-fill-hover ${className}`}
+    >
+      {copied ? "Copied" : "Copy prompt"}
+    </button>
+  );
+}
+
+/**
+ * The install command, copied on click, with Copy prompt inside the bar when `prompt` is set. The hero leaves
+ * it out: its 20rem column has no room for both beside the scoped name.
+ */
+function Install({ command = COMMAND, prompt }: { command?: string; prompt?: boolean }) {
+  const [copied, copy] = useCopy(command);
   return (
     <div className="flex w-full items-center rounded-xl text-sm text-foreground whitespace-nowrap ring-1 ring-foreground/12">
       <button
         type="button"
-        onClick={() => copy("command")}
+        onClick={copy}
         aria-label={`Copy ${command}`}
         className="min-w-0 flex-1 overflow-x-auto py-2.5 pr-3 pl-4 text-left font-mono [scrollbar-width:none]"
       >
-        {copied === "command" ? (
+        {copied ? (
           <span className="text-muted-foreground">Copied</span>
         ) : (
           <>
@@ -45,14 +68,8 @@ function Install({ command = COMMAND }: { command?: string }) {
           </>
         )}
       </button>
-      <button
-        type="button"
-        onClick={() => copy("prompt")}
-        aria-label="Copy a prompt for your agent"
-        className="mr-1.5 w-[6.25rem] shrink-0 rounded-lg bg-fill py-1 text-foreground transition-colors hover:bg-fill-hover"
-      >
-        {copied === "prompt" ? "Copied" : "Copy prompt"}
-      </button>
+      {/* Phones leave no room beside the scoped name, and the hero's Copy prompt is there anyway. */}
+      {prompt && <CopyPrompt className="mr-1.5 hidden sm:block" />}
     </div>
   );
 }
@@ -245,7 +262,10 @@ export function Hero({ license }: { license?: boolean }) {
         <p className="text-sm text-muted-foreground">A component library of animated AI status indicators for React. No dependencies, 3.8 KB gzipped.</p>
       </div>
       <Install />
-      <Credit license={license} />
+      <div className="flex items-center gap-3">
+        <CopyPrompt />
+        <Credit license={license} />
+      </div>
     </div>
   );
 }
@@ -454,9 +474,9 @@ export function StoryChat({ picked, wide, className = "" }: { picked: Item; wide
 /** Ways to install: the package from each package manager, or shadcn to copy the React source in. */
 const INSTALLS = [
   { id: "npm", label: "npm", command: COMMAND },
-  { id: "pnpm", label: "pnpm", command: "pnpm add thinkingorbs" },
-  { id: "yarn", label: "yarn", command: "yarn add thinkingorbs" },
-  { id: "bun", label: "bun", command: "bun add thinkingorbs" },
+  { id: "pnpm", label: "pnpm", command: "pnpm add @yogesharc/thinking-orbs" },
+  { id: "yarn", label: "yarn", command: "yarn add @yogesharc/thinking-orbs" },
+  { id: "bun", label: "bun", command: "bun add @yogesharc/thinking-orbs" },
   { id: "shadcn", label: "shadcn", command: "npx shadcn@latest add https://thinkingorbs.com/r/orb.json" },
 ] as const;
 
@@ -481,7 +501,7 @@ export function Docs({ className = "", llms }: { className?: string; llms?: bool
         <p>Install Thinking Orbs from npm, or copy the React component into your project with shadcn. The React orb needs nothing but React, and the plain JS one needs nothing at all.</p>
         <div className="flex flex-col gap-2">
           <Tabs label="Install with" value={via} options={INSTALLS} onChange={setVia} />
-          <Install command={INSTALLS.find((o) => o.id === via)?.command ?? COMMAND} />
+          <Install command={INSTALLS.find((o) => o.id === via)?.command ?? COMMAND} prompt />
         </div>
         {via === "shadcn" && (
           <p>

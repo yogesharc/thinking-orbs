@@ -159,7 +159,7 @@ function lensAt(t: number) {
 const HOP = 220, TAIL = 5, REACH = 24, WALK = 16;
 
 /**
- * A form for the dots, from `thinkingorbs/shapes` or your own. `points` returns [x, y, z] points inside
+ * A form for the dots, from `@yogesharc/thinking-orbs/shapes` or your own. `points` returns [x, y, z] points inside
  * the unit sphere, which fills the orb: it's given the number of dots to aim for and the look, like
  * "working" or "background-spiral", so a look can lay its points out its own way.
  */
@@ -172,7 +172,7 @@ export type OrbShape = {
 };
 
 /**
- * How the dots are drawn, from `thinkingorbs/renders` or your own. `mount` makes its elements with
+ * How the dots are drawn, from `@yogesharc/thinking-orbs/renders` or your own. `mount` makes its elements with
  * `make`, which appends them to the orb's svg, where they fill in `currentColor`. It returns `dot`,
  * called each frame for every point with where it lands in px, its radius and opacity, and which way
  * the spin carries it on screen; then `frame`, once they're all placed. `radius` is a dot's at rest.
@@ -242,11 +242,11 @@ export type OrbOptions = OrbLook & {
   /** What screen readers announce, like "Thinking". Without one the orb is hidden from them. */
   label?: string;
   /**
-   * The form the dots sit on, a sphere without one: a shape from `thinkingorbs/shapes`, or your own, as
+   * The form the dots sit on, a sphere without one: a shape from `@yogesharc/thinking-orbs/shapes`, or your own, as
    * an `OrbShape` or just its `points` function. Define it outside your component, or the orb redraws every render.
    */
   shape?: OrbShape | OrbShape["points"];
-  /** How the dots are drawn, circles without one: a render from `thinkingorbs/renders`, or your own. */
+  /** How the dots are drawn, circles without one: a render from `@yogesharc/thinking-orbs/renders`, or your own. */
   render?: OrbRender;
   /** How many dots, as a multiple of the tuned count. */
   density?: number;

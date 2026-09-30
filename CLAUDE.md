@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-**Thinking Orbs** (thinkingorbs.com) — animated dotted-sphere status indicators for AI agents: one sphere, a state for each thing an agent does (working, reasoning, compacting, searching, background tasks, retrying). Distributed two ways from one source: the npm package (`npm i thinkingorbs`, `import { Orb } from "thinkingorbs"`, or `mountOrb` from `thinkingorbs/vanilla` without React), and a shadcn registry item (`npx shadcn@latest add https://thinkingorbs.com/r/orb.json`) for people who want to own and edit the source. There is no CLI of our own.
+**Thinking Orbs** (thinkingorbs.com) — animated dotted-sphere status indicators for AI agents: one sphere, a state for each thing an agent does (working, reasoning, compacting, searching, background tasks, retrying). Distributed two ways from one source: the npm package (`npm i @yogesharc/thinking-orbs`, `import { Orb } from "@yogesharc/thinking-orbs"`, or `mountOrb` from `@yogesharc/thinking-orbs/vanilla` without React), and a shadcn registry item (`npx shadcn@latest add https://thinkingorbs.com/r/orb.json`) for people who want to own and edit the source. There is no CLI of our own.
 
-The npm name `thinkingorbs` was unclaimed as of 2026-09-28 and isn't published yet. (`thinking-orbs` is taken — don't use it.)
+The npm package is `@yogesharc/thinking-orbs`. npm refused the unscoped `thinkingorbs` as too similar to the existing `thinking-orbs`, an unrelated package with the same pitch, so keep the scope: dropping it installs theirs.
 
 Only the homepage ships to users. `/playground` (the orb playground) and the `/v1`–`/v4`, `/v6` layout trials are committed but unlinked and noindexed. The old design playground (`app/playground-old/`, `prototype/`, and the `motion` and `status` pages) stays gitignored — never commit those paths.
 
@@ -38,7 +38,7 @@ packages/thinkingorbs/  the npm package; `tsc` compiles both registry/orb files 
 
 `registry/orb/orb-core.ts` draws every orb: one SVG of imperatively created circles, redrawn each frame. `VARIANTS` lists every public `state` and the `variant`s it comes in, `default` first (`<Orb state="working" variant="gyro" />`); variants are named after their motion. Internally the drawing keys on a `Look`: the state alone for `default`, else `state-variant`. Where the dots sit comes from `distribute()` (a Fibonacci sphere, or spiral arms for `background-spiral`); `density`, `dotSize` and `tilt` tune it; every behaviour on top of the spin is a branch keyed on the state inside the one `draw` loop, and spin periods come from `PERIOD`. Renaming a state or variant means changing it in `orb-core.ts`, `app/orbs.tsx`, `app/llms.ts` and `packages/thinkingorbs/README.md`.
 
-The core ships only the sphere drawn in dots. Other shapes and renders are opt-in plug-ins, so they cost nothing unless imported: `registry/orb/shapes.ts` (`OrbShape`: `points(count, look)` plus optional `scale` and `tip`) and `registry/orb/renders.ts` (`OrbRender`: `mount` returns a per-point `dot()` and a per-frame `frame()`; `flat` renders like halftone and lines drop the tilt, and Working's ring runs straight down). They ship as `thinkingorbs/shapes` and `thinkingorbs/renders`, and as the `orb-shapes` and `orb-renders` registry items. Not every state is tuned for every extra, by design.
+The core ships only the sphere drawn in dots. Other shapes and renders are opt-in plug-ins, so they cost nothing unless imported: `registry/orb/shapes.ts` (`OrbShape`: `points(count, look)` plus optional `scale` and `tip`) and `registry/orb/renders.ts` (`OrbRender`: `mount` returns a per-point `dot()` and a per-frame `frame()`; `flat` renders like halftone and lines drop the tilt, and Working's ring runs straight down). They ship as `@yogesharc/thinking-orbs/shapes` and `@yogesharc/thinking-orbs/renders`, and as the `orb-shapes` and `orb-renders` registry items. Not every state is tuned for every extra, by design.
 
 ### The homepage
 

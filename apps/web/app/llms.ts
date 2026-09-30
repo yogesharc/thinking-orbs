@@ -5,7 +5,7 @@
 
 export const REPO = "yogesharc/thinkingorbs";
 
-export const USAGE = `import { Orb } from "thinkingorbs";
+export const USAGE = `import { Orb } from "@yogesharc/thinking-orbs";
 
 export function Thinking() {
   return (
@@ -16,7 +16,7 @@ export function Thinking() {
   );
 }`;
 
-export const VANILLA = `import { mountOrb } from "thinkingorbs/vanilla";
+export const VANILLA = `import { mountOrb } from "@yogesharc/thinking-orbs/vanilla";
 
 // Draws into any <svg> on the page, in its CSS color.
 const orb = mountOrb(document.querySelector("svg"), { state: "reasoning", label: "Thinking" });
@@ -26,15 +26,15 @@ orb.play(); // carry on
 orb.destroy(); // remove it`;
 
 /** The opt-in extras, in React and plain JS. */
-export const EXTRAS = `import { Orb } from "thinkingorbs";
-import { cube } from "thinkingorbs/shapes";
-import { halftone } from "thinkingorbs/renders";
+export const EXTRAS = `import { Orb } from "@yogesharc/thinking-orbs";
+import { cube } from "@yogesharc/thinking-orbs/shapes";
+import { halftone } from "@yogesharc/thinking-orbs/renders";
 
 <Orb state="working" shape={cube} render={halftone} />`;
 
-export const EXTRAS_VANILLA = `import { mountOrb } from "thinkingorbs/vanilla";
-import { cube } from "thinkingorbs/shapes";
-import { halftone } from "thinkingorbs/renders";
+export const EXTRAS_VANILLA = `import { mountOrb } from "@yogesharc/thinking-orbs/vanilla";
+import { cube } from "@yogesharc/thinking-orbs/shapes";
+import { halftone } from "@yogesharc/thinking-orbs/renders";
 
 mountOrb(document.querySelector("svg"), { state: "working", shape: cube, render: halftone });`;
 
@@ -44,8 +44,8 @@ export const props = [
   { name: "variant", type: "OrbVariant", fallback: `"default"`, note: "Which look of that state." },
   { name: "size", type: "number", fallback: "20", note: "Width and height in px." },
   { name: "speed", type: "number", fallback: "1", note: "Speed multiplier." },
-  { name: "shape", type: "OrbShape", fallback: "—", note: "Another form, from thinkingorbs/shapes." },
-  { name: "render", type: "OrbRender", fallback: "—", note: "Another way to draw it, from thinkingorbs/renders." },
+  { name: "shape", type: "OrbShape", fallback: "—", note: "Another form, from @yogesharc/thinking-orbs/shapes." },
+  { name: "render", type: "OrbRender", fallback: "—", note: "Another way to draw it, from @yogesharc/thinking-orbs/renders." },
   { name: "density", type: "number", fallback: "1", note: "Dot count multiplier." },
   { name: "dotSize", type: "number", fallback: "1", note: "Dot size multiplier." },
   { name: "tilt", type: "number", fallback: "20", note: "Viewing angle from above, in degrees." },
@@ -78,7 +78,7 @@ Website: https://thinkingorbs.com
 
 Install the package:
 
-${code("bash", "npm i thinkingorbs\n# or: pnpm add thinkingorbs, yarn add thinkingorbs, bun add thinkingorbs")}
+${code("bash", "npm i @yogesharc/thinking-orbs\n# or: pnpm add @yogesharc/thinking-orbs, yarn add @yogesharc/thinking-orbs, bun add @yogesharc/thinking-orbs")}
 
 Or copy the React source into the project with shadcn, to own and edit it. It lands in \`components/\`, so import from \`@/components/orb\`:
 
@@ -112,8 +112,8 @@ The orb is a sphere of dots. Other shapes and ways of drawing it are opt-in modu
 
 ${code("tsx", EXTRAS)}
 
-- \`thinkingorbs/shapes\`: \`cube\`, \`octahedron\`, \`tetrahedron\`, \`torus\`.
-- \`thinkingorbs/renders\`: \`dashes\`, \`squares\`, \`crosses\`, \`mesh\`, \`halftone\`, \`lines\`, \`verticalLines\`.
+- \`@yogesharc/thinking-orbs/shapes\`: \`cube\`, \`octahedron\`, \`tetrahedron\`, \`torus\`.
+- \`@yogesharc/thinking-orbs/renders\`: \`dashes\`, \`squares\`, \`crosses\`, \`mesh\`, \`halftone\`, \`lines\`, \`verticalLines\`.
 
 Not every state suits every shape or render. A custom shape is an \`OrbShape\`, \`{ points(count, look) }\` returning [x, y, z] points inside the unit sphere; a custom render is an \`OrbRender\`, whose \`mount\` makes SVG elements and returns \`dot(i, x, y, r, a, dx, dy)\`. Define either outside the component.
 
