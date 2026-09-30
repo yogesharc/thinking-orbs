@@ -17,4 +17,5 @@ next-env.d.ts
 
 # Agent tooling: worktrees and a local copy of CLAUDE.md.
 /.claude/
+/.agents/
 /AGENTS.md
