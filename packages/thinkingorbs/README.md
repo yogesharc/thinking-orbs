@@ -1,6 +1,6 @@
 # Thinking Orbs
 
-Animated dotted-sphere status orbs for AI agents: one sphere, a state for each thing an agent does. See them all at [thinkingorbs.com](https://thinkingorbs.com).
+Well-crafted, animated orb status indicators for AI interfaces: one sphere of dots, a state for each thing an agent does. For React or plain JS, with no dependencies. See them all at [thinkingorbs.com](https://thinkingorbs.com).
 
 ```bash
 npm i @yogesharc/thinking-orbs

@@ -1,7 +1,7 @@
 {
   "name": "@yogesharc/thinking-orbs",
-  "version": "0.1.0",
-  "description": "Animated dotted-sphere status orbs for AI agents.",
+  "version": "0.1.1",
+  "description": "Well-crafted, animated orb status indicators for AI interfaces: thinking, reasoning, searching, compacting and more. For React or plain JS, with no dependencies.",
   "keywords": [
     "react",
     "ai",
@@ -13,6 +13,12 @@
     "animation"
   ],
   "homepage": "https://thinkingorbs.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yogesharc/thinking-orbs.git",
+    "directory": "packages/thinkingorbs"
+  },
+  "bugs": "https://github.com/yogesharc/thinking-orbs/issues",
   "author": "Yogesh (https://yogesharc.com)",
   "license": "MIT",
   "type": "module",
