@@ -302,11 +302,10 @@ export function TopBar({
   return (
     <div className={`flex items-center gap-4 text-sm ${className}`}>
       {playground && (
-        // Tablets and up: on a phone the row has no room, and the playground needs a wide screen anyway.
         <Link
           href="/playground"
           aria-current={playground === "here" ? "page" : undefined}
-          className={`relative mx-2 hidden transition-colors md:inline ${playground === "here" ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          className={`relative mx-2 transition-colors ${playground === "here" ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
         >
           Playground
           {playground === true && (
@@ -590,11 +589,11 @@ export function Docs({ className = "", llms }: { className?: string; llms?: bool
 /**
  * The row across the top of every shipped page: contents on the left, the tools centred (equal side
  * columns keep them centred whatever sits beside them), then Playground, Sponsor and the switches.
- * On phones the contents drop out and the tools move left. `page` says which page it's on.
+ * On phones the contents drop out and the switches wrap under the tools. `page` says which page it's on.
  */
 export function SiteHeader({ stars, mode, onMode, page = "home" }: { stars: number | null; mode: Mode; onMode: (mode: Mode) => void; page?: "home" | "playground" }) {
   return (
-    <div className="z-10 mx-auto flex h-12 w-full max-w-[90rem] shrink-0 items-center justify-between gap-4 px-4 sm:px-8 md:grid md:grid-cols-[1fr_auto_1fr] xl:sticky xl:top-0">
+    <div className="z-10 mx-auto flex w-full max-w-[90rem] shrink-0 flex-col items-start gap-4 px-4 py-3 sm:px-8 md:grid md:h-12 md:items-center md:gap-4 md:py-0 md:grid-cols-[1fr_auto_1fr] xl:sticky xl:top-0">
       <div className="hidden md:block">
         <Toc className="gap-4" base={page === "home" ? "" : "/"} />
       </div>
