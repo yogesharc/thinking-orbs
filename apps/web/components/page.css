@@ -23,6 +23,10 @@ html {
   /* Contents links glide to their section instead of jumping. */
   scroll-behavior: smooth;
   scrollbar-width: thin;
+  /* Keep the scrollbar's room even when there's nothing to scroll, so layout never shifts.
+     The gutter is ignored while overflow is visible, hence the explicit auto. */
+  overflow-y: auto;
+  scrollbar-gutter: stable;
   scrollbar-color: oklch(0.55 0 0 / 0.45) transparent;
 }
 html::-webkit-scrollbar {
@@ -56,11 +60,26 @@ html::-webkit-scrollbar-thumb {
     background-position: -200% 0;
   }
 }
+/* The Playground link's marker oval, drawn on once. */
+.marker {
+  /* A gap longer than the path, nudged past its start, so the round cap shows no dot before the draw. */
+  stroke-dasharray: 1 2;
+  animation: marker 0.8s cubic-bezier(0.65, 0, 0.35, 1) 0.4s both;
+}
+@keyframes marker {
+  from {
+    stroke-dashoffset: 1.01;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
-  .shimmer {
+  .shimmer,
+  .marker {
     animation: none;
   }
 }

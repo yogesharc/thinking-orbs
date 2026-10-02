@@ -271,6 +271,9 @@ export function Hero({ license }: { license?: boolean }) {
 }
 
 
+// The marker oval draws on the first page load only, not on every remount after client navigation.
+let markerDrawn = false;
+
 /** GitHub stars and the theme switch, with the Playground link, Sponsor or the View all switch when the page has them. */
 export function TopBar({
   stars,
@@ -292,6 +295,10 @@ export function TopBar({
   playground?: boolean | "here";
   className?: string;
 }) {
+  const [draw] = useState(() => !markerDrawn);
+  useEffect(() => {
+    markerDrawn = true;
+  }, []);
   return (
     <div className={`flex items-center gap-4 text-sm ${className}`}>
       {playground && (
@@ -299,9 +306,24 @@ export function TopBar({
         <Link
           href="/playground"
           aria-current={playground === "here" ? "page" : undefined}
-          className={`hidden transition-colors md:inline ${playground === "here" ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          className={`relative mx-2 hidden transition-colors md:inline ${playground === "here" ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
         >
           Playground
+          {playground === true && (
+            // A marker scrawl round the link, so the eye finds it.
+            <svg aria-hidden viewBox="0 0 100 40" preserveAspectRatio="none" className="pointer-events-none absolute -left-3.5 -top-2.5 h-[calc(100%+1.25rem)] w-[calc(100%+1.75rem)] -rotate-5 overflow-visible text-pink-500">
+              <path
+                className={draw ? "marker" : undefined}
+                pathLength={1}
+                d="M84 7C62 0 18 2 6 14C-4 25 12 37 46 38C80 39 100 30 97 17C94 6 72 2 52 5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
+              />
+            </svg>
+          )}
         </Link>
       )}
       {sponsor && (
