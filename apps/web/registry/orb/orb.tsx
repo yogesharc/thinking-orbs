@@ -6,7 +6,7 @@ import { mountOrb, type OrbLook, type OrbOptions, type OrbRender, type OrbShape,
 export type { OrbLook, OrbOptions, OrbRender, OrbShape, OrbState, OrbVariant };
 
 /**
- * An animated dotted sphere for what an AI agent is doing: a `state`, and optionally one of that
+ * An animated status indicator for what an AI agent is doing: a `state`, and optionally one of that
  * state's `variant`s. It draws in the text color, so `text-*` classes tint it, and every orb is
  * tuned to read at 20px. `shape`, `render`, `density`, `dotSize` and `tilt` change how it's drawn.
  * `paused` holds it on its frame. With reduced motion it holds still.

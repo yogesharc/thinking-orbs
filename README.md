@@ -2,7 +2,9 @@
 
 # Thinking Orbs
 
-Well-crafted, animated orb status indicators for AI interfaces: one sphere of dots, a state for each thing an agent does. Working, reasoning, searching, compacting, background tasks, retrying and waiting. For React or plain JS, with no dependencies.
+A React component library of animated AI agent status indicator orbs. Thinking, searching, compacting and more well-thought-out orbs built with attention to detail on every state and variant. 8 states, 15 variants, 5 shapes and 8 render styles to fit every state an agent goes through and your design style.
+
+Works in React or plain JS, with no dependencies.
 
 See them all at [thinkingorbs.com](https://thinkingorbs.com), and try every shape and render in the [playground](https://thinkingorbs.com/playground).
 

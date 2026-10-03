@@ -108,7 +108,7 @@ The orb draws in the text color (\`currentColor\`). With reduced motion it holds
 
 ## Shapes and renders
 
-The orb is a sphere of dots. Other shapes and ways of drawing it are opt-in modules, so only what you import lands in the bundle. With shadcn, add them as \`https://thinkingorbs.com/r/orb-shapes.json\` and \`https://thinkingorbs.com/r/orb-renders.json\`.
+The core ships one shape and one render. Other shapes and ways of drawing it are opt-in modules, so only what you import lands in the bundle. With shadcn, add them as \`https://thinkingorbs.com/r/orb-shapes.json\` and \`https://thinkingorbs.com/r/orb-renders.json\`.
 
 ${code("tsx", EXTRAS)}
 

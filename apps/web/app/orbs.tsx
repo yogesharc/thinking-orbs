@@ -568,7 +568,7 @@ export function Docs({ className = "", llms }: { className?: string; llms?: bool
         </div>
         <h3 className="mt-4 font-medium text-foreground">Shapes and renders</h3>
         <p>
-          The orb is a sphere of dots. Other shapes and ways of drawing it are opt-in, so only what you import lands in your bundle.
+          The core ships one shape and one render. Other shapes and ways of drawing it are opt-in, so only what you import lands in your bundle.
           Try them all in the{" "}
           <Link href="/playground" className={UNDERLINE}>
             playground

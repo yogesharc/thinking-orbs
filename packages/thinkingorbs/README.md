@@ -1,6 +1,8 @@
 # Thinking Orbs
 
-Well-crafted, animated orb status indicators for AI interfaces: one sphere of dots, a state for each thing an agent does. For React or plain JS, with no dependencies. See them all at [thinkingorbs.com](https://thinkingorbs.com).
+A React component library of animated AI agent status indicator orbs. Thinking, searching, compacting and more well-thought-out orbs built with attention to detail on every state and variant. 8 states, 15 variants, 5 shapes and 8 render styles to fit every state an agent goes through and your design style.
+
+Works in React or plain JS, with no dependencies. See them all at [thinkingorbs.com](https://thinkingorbs.com).
 
 ```bash
 npm i @yogesharc/thinking-orbs
@@ -38,7 +40,7 @@ It's a client component with no dependencies beyond React 18+. With `prefers-red
 
 ## Shapes and renders
 
-The orb is a sphere of dots. Other shapes and ways of drawing it are opt-in, so they only land in your bundle if you import them:
+The core ships one shape and one render. Other shapes and ways of drawing it are opt-in, so they only land in your bundle if you import them:
 
 ```tsx
 import { Orb } from "@yogesharc/thinking-orbs";
