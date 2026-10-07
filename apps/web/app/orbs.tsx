@@ -231,7 +231,11 @@ export function Links({ license = true }: { license?: boolean }) {
       <a href="/llms.txt" target="_blank" className={UNDERLINE}>
         llms.txt
       </a>
-      {license && <span>MIT License</span>}
+      {license && (
+        <a href={`https://github.com/${REPO}/blob/main/packages/thinkingorbs/LICENSE`} target="_blank" rel="noopener" className="transition-colors hover:text-foreground">
+          MIT License
+        </a>
+      )}
     </p>
   );
 }
@@ -245,16 +249,28 @@ function Credit({ license }: { license?: boolean }) {
           Yogesh
         </a>
       </span>
-      {license && <span>MIT License</span>}
+      {license && (
+        <a href={`https://github.com/${REPO}/blob/main/packages/thinkingorbs/LICENSE`} target="_blank" rel="noopener" className="transition-colors hover:text-foreground">
+          MIT License
+        </a>
+      )}
     </p>
   );
 }
 
 /** The pitch: name, one line on what it is, the install bar and who made it. */
-export function Hero({ license }: { license?: boolean }) {
+export function Hero({ license, installs }: { license?: boolean; installs?: number | null }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
+        {installs != null && (
+          <a href="https://www.npmjs.com/package/@yogesharc/thinking-orbs" target="_blank" rel="noopener" className="flex items-center gap-1.5 self-start text-sm text-muted-foreground transition-colors hover:text-foreground">
+            <NpmLogo className="size-3.5" />
+            <span>
+              <span className="tabular-nums">{Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(installs)}</span> installs
+            </span>
+          </a>
+        )}
         <h1 className="text-[28px] leading-[1.1] font-medium tracking-[-0.03em]">
           Thinking Orbs
           <span className="block text-muted-foreground">for AI Interfaces</span>
@@ -401,6 +417,14 @@ function GitHubLogo({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className={className}>
       <path d="M12 .3a12 12 0 0 0-3.8 23.38c.6.12.83-.26.83-.57L9 21.07c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.08-.74.09-.73.09-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.8 1.3 3.49 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.1-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.64 1.66.24 2.88.12 3.18a4.65 4.65 0 0 1 1.23 3.22c0 4.61-2.8 5.63-5.48 5.92.42.36.81 1.1.81 2.22l-.01 3.29c0 .31.2.69.82.57A12 12 0 0 0 12 .3" />
+    </svg>
+  );
+}
+
+function NpmLogo({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className={className}>
+      <path d="M1.763 0C.786 0 0 .786 0 1.763v20.474C0 23.214.786 24 1.763 24h20.474c.977 0 1.763-.786 1.763-1.763V1.763C24 .786 23.214 0 22.237 0zM5.13 5.323l13.837.019-.009 13.836h-3.464l.01-10.382h-3.456L12.04 19.17H5.113z" />
     </svg>
   );
 }
@@ -610,7 +634,7 @@ export function SiteHeader({ stars, mode, onMode, page = "home" }: { stars: numb
  * sticky left column, the orbs two to a row in the middle, and the chat sticky on the right. Scrolling
  * zigzags through each row of cards, picking the one the pick line crosses, and the chat's live line shows it.
  */
-export function Orbs({ stars }: { stars: number | null }) {
+export function Orbs({ stars, installs }: { stars: number | null; installs: number | null }) {
   const [mode, setMode] = useState<Mode>("dark");
   const { picked, pick, wide } = useStory(XL);
 
@@ -620,7 +644,7 @@ export function Orbs({ stars }: { stars: number | null }) {
 
       <div className="mx-auto flex w-full max-w-[90rem] flex-col gap-12 px-4 py-12 sm:px-8 xl:grid xl:grid-cols-[20rem_minmax(0,1fr)] xl:items-start xl:gap-x-12 xl:gap-y-0 xl:py-0">
         <header className="xl:sticky xl:top-12 xl:col-start-1 xl:row-start-1 xl:flex xl:h-[calc(100vh-3rem)] xl:items-center xl:pb-12">
-          <Hero license />
+          <Hero license installs={installs} />
         </header>
         {/* The chat spans the cards and the guide, so it stays pinned while the last rows reach the pick line on tall screens. */}
         <div className="flex flex-col gap-12 xl:col-start-2 xl:row-start-1 xl:grid xl:grid-cols-[minmax(0,1fr)_21rem] xl:items-start xl:gap-x-12 xl:gap-y-0">
