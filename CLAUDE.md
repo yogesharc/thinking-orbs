@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The npm package is `@yogesharc/thinking-orbs`. npm refused the unscoped `thinkingorbs` as too similar to the existing `thinking-orbs`, an unrelated package with the same pitch, so keep the scope: dropping it installs theirs.
 
-Only the homepage ships to users. `/playground` (the orb playground) and the `/v1`–`/v4`, `/v6` layout trials are committed but unlinked and noindexed. The old design playground (`app/playground-old/`, `prototype/`, and the `motion` and `status` pages) stays gitignored — never commit those paths.
+The homepage and `/playground` (the orb playground, linked from the header) ship to users. The `/v1`–`/v4`, `/v6` layout trials are committed but unlinked and noindexed. The old design playground (`app/playground-old/`, `prototype/`, and the `motion` and `status` pages) stays gitignored — never commit those paths.
 
 ## Commands
 
