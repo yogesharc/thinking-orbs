@@ -51,6 +51,7 @@ function CopyPrompt({ className = "" }: { className?: string }) {
  */
 function Install({ command = COMMAND, prompt }: { command?: string; prompt?: boolean }) {
   const [copied, copy] = useCopy(command);
+  const words = command.split(" ");
   return (
     <div className="flex w-full items-center rounded-xl text-sm text-foreground whitespace-nowrap ring-1 ring-foreground/12">
       <button
@@ -64,7 +65,8 @@ function Install({ command = COMMAND, prompt }: { command?: string; prompt?: boo
         ) : (
           <>
             <span className="text-muted-foreground">$ </span>
-            {command}
+            {words.slice(0, -1).join(" ")}{" "}
+            <span className={TONES[1]}>{words.at(-1)}</span>
           </>
         )}
       </button>
@@ -142,7 +144,7 @@ export function OrbGrid({ className = "sm:grid-cols-2 xl:grid-cols-3" }: { class
 const SYNTAX = /(\/\/.*)|("[^"]*")|\b(import|from|export|function|return|const|type)\b|(?<=<\/?)([A-Za-z][\w.]*)|\b([a-zA-Z]+)(?==)/g;
 const TONES = [
   "text-muted-foreground italic",
-  "text-[oklch(0.68_0.13_155)]",
+  "text-[oklch(0.8_0.16_155)] light:text-[oklch(0.68_0.13_155)]",
   "text-[oklch(0.66_0.15_300)]",
   "text-[oklch(0.66_0.13_240)]",
   "text-[oklch(0.72_0.12_65)]",
