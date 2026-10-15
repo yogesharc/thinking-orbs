@@ -1,6 +1,6 @@
 # Thinking Orbs
 
-A React component library of animated AI agent status indicator orbs. Thinking, searching, compacting and more well-thought-out orbs built with attention to detail on every state and variant. 8 states, 15 variants, 5 shapes and 8 render styles to fit every state an agent goes through and your design style.
+A React component library of animated AI agent status indicator orbs. Thinking, searching, compacting, using a browser and more well-thought-out orbs built with attention to detail on every state and variant. 9 states, 23 variants, 5 shapes and 8 render styles to fit every state an agent goes through and your design style.
 
 Works in React or plain JS, with no dependencies. See them all at [thinkingorbs.com](https://thinkingorbs.com).
 
@@ -21,7 +21,7 @@ import { Orb } from "@yogesharc/thinking-orbs";
 
 | Prop | Type | Default | |
 | --- | --- | --- | --- |
-| `state` | `OrbState` | `"base"` | What the agent is doing. |
+| `state` | `OrbState` | `"idle"` | What the agent is doing. |
 | `variant` | `OrbVariant` | `"default"` | Which look of that state. |
 | `size` | `number` | `20` | Width and height in px. Every orb is tuned to read at 20. |
 | `speed` | `number` | `1` | How fast it runs: `0.5` is half speed, `2` double. Every motion scales together. |
@@ -30,11 +30,12 @@ import { Orb } from "@yogesharc/thinking-orbs";
 | `density` | `number` | `1` | How many dots, as a multiple of the tuned count. |
 | `dotSize` | `number` | `1` | How big each dot is, as a multiple of the tuned size. |
 | `tilt` | `number` | `20` | How far it's seen from above, in degrees: `0` side on, `90` straight down. |
+| `direction` | `OrbDirection` | | Where `using` clicks, or which way its `scroll` scrolls, as a page does: `"up"`, `"down-left"` and the rest of the compass. Without one it goes anywhere. |
 | `paused` | `boolean` | `false` | Holds it on its current frame. |
 | `label` | `string` | | What screen readers announce, like "Thinking". Without one it's hidden from them. |
 | `className` | `string` | | The orb draws in the text color, so set `color` to tint it. |
 
-States and their variants (`default` is each state's own look): `working` (`gyro`), `reasoning` (`twins`), `searching` (`lighthouse`), `background` (`spiral`), `retrying` (`surge`), `compacting` (`squeeze`, `fuse`), `waiting`, `base`.
+States and their variants (`default` is each state's own look): `working` (`gyro`), `reasoning` (`twins`), `searching` (`lighthouse`), `background` (`spiral`), `using` (`tap`, `scroll`, `type`, `zoom`, `snap`, `record`), `retrying` (`surge`), `compacting` (`squeeze`, `fuse`), `waiting`, `idle` (`blink`). `idle` was called `base`, which still works.
 
 It's a client component with no dependencies beyond React 18+. With `prefers-reduced-motion` it holds still.
 

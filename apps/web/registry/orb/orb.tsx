@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { mountOrb, type OrbLook, type OrbOptions, type OrbRender, type OrbShape, type OrbState, type OrbVariant } from "./orb-core";
+import { mountOrb, type OrbDirection, type OrbLook, type OrbOptions, type OrbRender, type OrbShape, type OrbState, type OrbVariant } from "./orb-core";
 
-export type { OrbLook, OrbOptions, OrbRender, OrbShape, OrbState, OrbVariant };
+export type { OrbDirection, OrbLook, OrbOptions, OrbRender, OrbShape, OrbState, OrbVariant };
 
 /**
  * An animated status indicator for what an AI agent is doing: a `state`, and optionally one of that
@@ -23,20 +23,21 @@ export function Orb({
   density,
   dotSize,
   tilt,
+  direction,
   className,
 }: OrbOptions & { paused?: boolean; className?: string }) {
   const ref = useRef<SVGSVGElement>(null);
   const orb = useRef<ReturnType<typeof mountOrb>>(null);
   useEffect(() => {
     // Destructuring split state from variant, so TypeScript no longer sees they belong together.
-    const o = (orb.current = mountOrb(ref.current!, { state, variant, size, speed, label, shape, render, density, dotSize, tilt } as OrbOptions));
+    const o = (orb.current = mountOrb(ref.current!, { state, variant, size, speed, label, shape, render, density, dotSize, tilt, direction } as OrbOptions));
     return o.destroy;
-  }, [state, variant, size, speed, label, shape, render, density, dotSize, tilt]);
+  }, [state, variant, size, speed, label, shape, render, density, dotSize, tilt, direction]);
   // After the mount above, so a remounted orb comes back paused if it should be.
   useEffect(() => {
     if (paused) orb.current!.pause();
     else orb.current!.play();
-  }, [paused, state, variant, size, speed, label, shape, render, density, dotSize, tilt]);
+  }, [paused, state, variant, size, speed, label, shape, render, density, dotSize, tilt, direction]);
   // The same a11y attributes mountOrb sets, so the server's HTML has them before it runs.
   const a11y = label ? { role: "img", "aria-label": label } : { "aria-hidden": true };
   return <svg ref={ref} width={size} height={size} viewBox={`0 0 ${size} ${size}`} fill="currentColor" className={className} {...a11y} />;

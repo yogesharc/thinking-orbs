@@ -6,7 +6,7 @@ import "./playground.css";
 import { useEffect, useState } from "react";
 import { SiteHeader } from "../orbs";
 import { orbs, theme, type Mode } from "../orbs-data";
-import { Orb, type OrbOptions, type OrbRender, type OrbShape } from "@/registry/orb/orb";
+import { Orb, type OrbDirection, type OrbOptions, type OrbRender, type OrbShape } from "@/registry/orb/orb";
 import { VARIANTS } from "@/registry/orb/orb-core";
 import * as RENDERS from "@/registry/orb/renders";
 import * as SHAPES from "@/registry/orb/shapes";
@@ -49,6 +49,11 @@ const LABEL = Object.fromEntries(orbs.map(({ orb, label }) => [orb.variant ? `${
 /** `<Orb>`'s own defaults, so Copy only writes what's been changed. The playground's size and colour aren't them. */
 const ORB_DEFAULTS: Record<string, string | number> = { variant: "default", size: 20, speed: 1, density: 1, dotSize: 1, tilt: 20 };
 
+/** The directions as a compass, row by row. The middle is none: Using clicks anywhere, and Scroll pans every way. */
+const WAYS: [OrbDirection | undefined, string][] = [
+  ["up-left", "↖"], ["up", "↑"], ["up-right", "↗"], ["left", "←"], [undefined, "·"], ["right", "→"], ["down-left", "↙"], ["down", "↓"], ["down-right", "↘"],
+];
+
 /** The settings as JSX, leaving out any at its default, with the imports a shape or render needs. */
 const jsx = (props: Record<string, string | number | undefined>, shape: string, render: string, color?: string) => {
   const attrs = Object.entries(props)
@@ -79,8 +84,13 @@ export function Playground({ stars }: { stars: number | null }) {
   const dial = useDialKitController("Orb playground", (flat ? UNTILTED : CONFIG) as typeof CONFIG);
   const v = dial.values;
   if (!!renders[v.render]?.flat !== flat) setFlat(!flat);
+  const [direction, setDirection] = useState<OrbDirection>();
   const [state, variant] = look.split("-");
-  const props = { state, variant, speed: v.speed, density: v.density, dotSize: v.dotSize, tilt: flat ? undefined : v.tilt };
+  const aims = look === "using" || look === "using-scroll";
+  const props = {
+    state, variant, speed: v.speed, density: v.density, dotSize: v.dotSize, tilt: flat ? undefined : v.tilt,
+    direction: aims ? direction : undefined,
+  };
   const orb = { ...props, shape: shapes[v.shape], render: renders[v.render] } as OrbOptions;
 
   // Switching theme swaps the colour too, unless it's been set to something of your own.
@@ -156,6 +166,23 @@ export function Playground({ stars }: { stars: number | null }) {
 
         <aside className="mx-auto flex w-full max-w-md shrink-0 flex-col overflow-y-auto px-4 py-6 sm:px-8 lg:mx-0 lg:w-80 lg:max-w-none lg:justify-center-safe">
           <DialRoot mode="inline" theme={mode} productionEnabled />
+          {aims && (
+            <div role="radiogroup" aria-label="Direction" className="mt-4 grid w-fit grid-cols-3 gap-1 text-sm">
+              {WAYS.map(([w, glyph]) => (
+                <button
+                  key={w ?? "none"}
+                  type="button"
+                  role="radio"
+                  aria-checked={w === direction}
+                  aria-label={w ?? "anywhere"}
+                  onClick={() => setDirection(w)}
+                  className={`size-8 rounded transition-colors ${w === direction ? "bg-foreground/10 text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  {glyph}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="mt-4 flex gap-4 text-sm">
             <button type="button" onClick={copy} className="text-muted-foreground transition-colors hover:text-foreground">
               {copied ? "Copied" : "Copy"}

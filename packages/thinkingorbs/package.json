@@ -1,6 +1,6 @@
 {
   "name": "@yogesharc/thinking-orbs",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Well-crafted, animated orb status indicators for AI interfaces: thinking, reasoning, searching, compacting and more. For React or plain JS, with no dependencies.",
   "keywords": [
     "react",

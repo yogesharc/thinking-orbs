@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ChatMock, type ChatRow } from "@/components/chat-mock";
-import { Orb } from "@/registry/orb/orb";
+import { Orb, type OrbLook } from "@/registry/orb/orb";
 import { EXTRAS, EXTRAS_VANILLA, LLMS, props, REPO, USAGE, VANILLA } from "./llms";
 import { LG, orbs, theme, XL, type Item, type Mode } from "./orbs-data";
 
@@ -76,24 +76,139 @@ function Install({ command = COMMAND, prompt }: { command?: string; prompt?: boo
   );
 }
 
-/** A card's face: the orb on an inset stage, its name underneath. */
-function Card({ item }: { item: Item }) {
+/** How long a cycling card holds each variant, in ms. */
+const TURN = 3500;
+
+/**
+ * A cycling card's variant: it takes turns every TURN ms until one's chosen, then holds it. `turn`
+ * only counts up, never wrapping, so the strip of names can run on without end; `at` is its variant.
+ * It only turns while the card, on `ref`, is in view, so a reader reaching it sees it from the first.
+ */
+function useTurns<E extends HTMLElement>(cycle?: readonly string[]) {
+  const ref = useRef<E>(null);
+  const [turn, setTurn] = useState(0);
+  const [held, setHeld] = useState(false);
+  const [seen, setSeen] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!cycle || !el) return;
+    const io = new IntersectionObserver((es) => setSeen(es[es.length - 1].isIntersecting));
+    io.observe(el);
+    return () => io.disconnect();
+  }, [cycle]);
+  useEffect(() => {
+    if (!cycle || held || !seen) return;
+    const id = setInterval(() => setTurn((k) => k + 1), TURN);
+    return () => clearInterval(id);
+  }, [cycle, held, seen]);
+  const choose = (k: number) => {
+    setTurn(k);
+    setHeld(true);
+  };
+  const n = cycle?.length ?? 1;
+  return { ref, turn, at: ((turn % n) + n) % n, choose };
+}
+
+/** A variant's name on the strip: the default one is Using's arrow. */
+const chip = (v: string) => (v === "default" ? "Arrow" : v[0].toUpperCase() + v.slice(1));
+
+/** A card's face: the orb on an inset stage, a New tag on the latest, its name underneath. A cycling card shows `variant`. */
+function Card({ item, variant }: { item: Item; variant?: string }) {
+  const orb = (variant ? { ...item.orb, variant } : item.orb) as OrbLook;
+  const [name, sub] = item.name.split(" · ");
   return (
     <>
-      <span className="flex h-56 w-full items-center justify-center rounded-2xl bg-foreground/[0.06] shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_12%,transparent)] light:bg-fill">
-        <Orb size={96} {...item.orb} />
+      <span className="relative flex h-56 w-full items-center justify-center rounded-2xl bg-foreground/[0.06] shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_12%,transparent)] light:bg-fill">
+        {item.isNew && (
+          // Pink, like the circle round Playground in the header.
+          <span className="absolute top-3 left-3.5 flex items-center gap-1 text-xs text-pink-500 light:text-pink-600">
+            <Sparkle className="size-3" />
+            New
+          </span>
+        )}
+        <Orb size={96} {...orb} />
       </span>
       <span className="w-full px-4 pt-3 pb-4 text-center text-sm">
-        {item.name.split(" · ")[0]}
-        {item.orb.variant && <span className="text-muted-foreground"> · {item.name.split(" · ")[1]}</span>}
+        {name}
+        {sub && <span className="text-muted-foreground"> · {sub}</span>}
       </span>
     </>
+  );
+}
+
+/** Each name's slot on the strip, in px, wide enough for the longest. */
+const SLOT = 60;
+
+/**
+ * A cycling card's variant names on one line along the bottom of its stage, the one showing in the
+ * middle and the rest trailing off both ways. Each name has a fixed slot by its turn number, and
+ * only those near the middle are drawn, so as the turn counts up the strip slides left without end.
+ * Choosing a name slides it to the middle and holds it there.
+ */
+function Strip({ cycle, turn, onChoose }: { cycle: readonly string[]; turn: number; onChoose: (k: number) => void }) {
+  const near = Array.from({ length: cycle.length }, (_, j) => turn - Math.floor(cycle.length / 2) + j);
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Variant"
+      className="absolute inset-x-0 top-46 h-6 overflow-hidden text-xs [mask-image:linear-gradient(to_right,transparent,black_30%,black_70%,transparent)]"
+    >
+      <div className="absolute inset-y-0 left-1/2 transition-transform duration-500 ease-out" style={{ transform: `translateX(${-(turn + 0.5) * SLOT}px)` }}>
+        {near.map((k) => (
+          <button
+            key={k}
+            type="button"
+            role="radio"
+            aria-checked={k === turn}
+            onClick={() => onChoose(k)}
+            style={{ left: k * SLOT, width: SLOT }}
+            className={`absolute inset-y-0 transition-colors ${k === turn ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            {chip(cycle[((k % cycle.length) + cycle.length) % cycle.length])}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
 const CARD = "flex w-full flex-col rounded-2xl bg-foreground/[0.04] transition-shadow hover:shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_30%,transparent)] light:bg-white light:shadow-[0_1px_2px_rgb(0_0_0/0.07),0_1px_1px_rgb(0_0_0/0.04)]! light:ring-1 light:ring-foreground/12 light:hover:ring-foreground/30";
 const RING = "shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_30%,transparent)] light:ring-foreground/30";
 const EDGE = "shadow-[0_0_0_0.5px_color-mix(in_oklab,var(--foreground)_8%,transparent)]";
+
+/**
+ * A card in the list: a button that picks it. A cycling card's strip can't sit inside that button,
+ * so its frame goes on a wrapper holding both.
+ */
+function ListCard({ item, on, onPick }: { item: Item; on: boolean; onPick: (item: Item, el: HTMLElement) => void }) {
+  const { ref, turn, at, choose } = useTurns<HTMLDivElement>(item.cycle);
+  const face = <Card item={item} variant={item.cycle?.[at]} />;
+  if (!item.cycle)
+    return (
+      <button type="button" aria-pressed={on} onClick={(e) => onPick(item, e.currentTarget)} className={`${CARD} ${on ? RING : EDGE}`}>
+        {face}
+      </button>
+    );
+  return (
+    <div ref={ref} className={`relative ${CARD} ${on ? RING : EDGE}`}>
+      <button type="button" aria-pressed={on} onClick={(e) => onPick(item, e.currentTarget)} className="flex w-full flex-col">
+        {face}
+      </button>
+      <Strip cycle={item.cycle} turn={turn} onChoose={choose} />
+    </div>
+  );
+}
+
+/** A card in the grid, with nothing to pick; a cycling one has its strip. */
+function GridCard({ item }: { item: Item }) {
+  const { ref, turn, at, choose } = useTurns<HTMLLIElement>(item.cycle);
+  return (
+    <li ref={ref} className={`relative ${CARD} ${EDGE}`}>
+      <Card item={item} variant={item.cycle?.[at]} />
+      {item.cycle && <Strip cycle={item.cycle} turn={turn} onChoose={choose} />}
+    </li>
+  );
+}
 
 /**
  * One card per orb in story order. The picked one wears the hover ring; clicking a card
@@ -110,16 +225,11 @@ export function OrbList({
 }) {
   return (
     <ul className={`grid gap-4 ${className}`}>
-      {orbs.map((item) => {
-        const on = item === picked;
-        return (
-          <li key={item.name} data-orb={item.name}>
-            <button type="button" aria-pressed={on} onClick={(e) => onPick(item, e.currentTarget)} className={`${CARD} ${on ? RING : EDGE}`}>
-              <Card item={item} />
-            </button>
-          </li>
-        );
-      })}
+      {orbs.map((item) => (
+        <li key={item.name} data-orb={item.name}>
+          <ListCard item={item} on={item === picked} onPick={onPick} />
+        </li>
+      ))}
     </ul>
   );
 }
@@ -129,9 +239,7 @@ export function OrbGrid({ className = "sm:grid-cols-2 xl:grid-cols-3" }: { class
   return (
     <ul className={`grid gap-4 ${className}`}>
       {grouped.map((item) => (
-        <li key={item.name} className={`${CARD} ${EDGE}`}>
-          <Card item={item} />
-        </li>
+        <GridCard key={item.name} item={item} />
       ))}
     </ul>
   );
@@ -431,6 +539,15 @@ function NpmLogo({ className }: { className?: string }) {
   );
 }
 
+/** A four-pointed sparkle, for the New tag. */
+function Sparkle({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden className={className}>
+      <path d="M8 0c.4 3.9 2.1 6.1 6 6.6v.8c-3.9.5-5.6 2.7-6 6.6h-.8c-.4-3.9-2.1-6.1-6-6.6v-.8c3.9-.5 5.6-2.7 6-6.6H8Z" transform="translate(0.4 1)" />
+    </svg>
+  );
+}
+
 /** Dray's mark, from Dray's own assets. */
 function DrayMark({ className }: { className?: string }) {
   return (
@@ -504,7 +621,9 @@ export function useStory(wide = LG) {
 }
 
 /** The picked orb live in a chat turn; on wide screens, the orbs before it are already rows above. */
-export function StoryChat({ picked, wide, className = "" }: { picked: Item; wide: boolean; className?: string }) {
+export function StoryChat({ picked: chosen, wide, className = "" }: { picked: Item; wide: boolean; className?: string }) {
+  // A cycling card isn't in the story, so the chat stays on the orb before it.
+  const picked = chosen.cycle ? (orbs.slice(0, orbs.indexOf(chosen)).findLast((o) => !o.cycle) ?? orbs[0]) : chosen;
   const at = orbs.indexOf(picked);
   return (
     <aside aria-label="The picked orb in a chat" className={`flex flex-col gap-3 ${className}`}>

@@ -1,6 +1,6 @@
 /** One state per thing an agent does, and the looks each comes in, `default` first. */
 export const VARIANTS = {
-  base: ["default"],
+  idle: ["default", "blink"],
   working: ["default", "gyro"],
   reasoning: ["default", "twins"],
   searching: ["default", "lighthouse"],
@@ -8,12 +8,17 @@ export const VARIANTS = {
   retrying: ["default", "surge"],
   compacting: ["default", "squeeze", "fuse"],
   waiting: ["default"],
+  using: ["default", "tap", "scroll", "type", "zoom", "snap", "record"],
 } as const;
 
 export type OrbState = keyof typeof VARIANTS;
 export type OrbVariant<S extends OrbState = OrbState> = (typeof VARIANTS)[S][number];
-/** A state and one of its own variants, `default` if left out. With no state it's `base`. */
-export type OrbLook = { state?: undefined; variant?: undefined } | { [S in OrbState]: { state: S; variant?: OrbVariant<S> } }[OrbState];
+/** A state and one of its own variants, `default` if left out. With no state it's `idle`. */
+export type OrbLook =
+  | { state?: undefined; variant?: undefined }
+  | { [S in OrbState]: { state: S; variant?: OrbVariant<S> } }[OrbState]
+  /** @deprecated `base` is now `idle`. */
+  | { state: "base"; variant?: "default" };
 
 /** What the drawing keys on: the state alone for its default look, or state-variant. */
 type Look = OrbState | { [S in OrbState]: `${S}-${Exclude<OrbVariant<S>, "default">}` }[OrbState];
@@ -53,7 +58,8 @@ export const nearest = (pts: number[][], i: number, k: number) => {
 
 /** Time for one full turn, in ms. Retrying's two set their own pace in `yawOf`. */
 const PERIOD: Record<Look, number> = {
-  base: 6500,
+  idle: 6500,
+  "idle-blink": 13000,
   working: 3000,
   "working-gyro": 3000,
   reasoning: 6500,
@@ -68,11 +74,19 @@ const PERIOD: Record<Look, number> = {
   "compacting-squeeze": 10000,
   "compacting-fuse": 10000,
   waiting: 13000,
+  using: 13000,
+  "using-tap": 13000,
+  "using-scroll": 13000,
+  "using-type": 13000,
+  "using-zoom": 13000,
+  "using-snap": 13000,
+  "using-record": 13000,
 };
 
 /**
  * One clock (ms) per look (state and speed), so every orb of it stays in phase. A frame's gap is
- * capped at 100ms, so a tab coming back from the background carries on instead of jumping.
+ * capped at 100ms, so a tab coming back from the background, or a look nobody had in view, carries
+ * on instead of jumping.
  */
 const clocks = new Map<string, { t: number; last: number }>();
 function tick(look: string, now: number, speed: number) {
@@ -122,6 +136,10 @@ function yawOf(state: Look, t: number) {
     const turns = t / 3250, u = turns - Math.floor(turns);
     return (Math.floor(turns) + (1 - (1 - u) ** 3)) * TAU;
   }
+  // Scroll rolls instead, so it holds still side to side.
+  if (state === "using-scroll") return 0.4;
+  // Snap turns for most of each beat and stops dead for the rest, as the frame is caught.
+  if (state === "using-snap") return ((Math.floor(t / BEAT) * SPIN + Math.min(t % BEAT, SPIN)) / PERIOD[state]) * TAU;
   return (t / PERIOD[state]) * TAU;
 }
 
@@ -150,6 +168,124 @@ function lensAt(t: number) {
   const a = spot(k), b = spot(k + 1);
   const v = a.map((ai, j) => ai + (b[j] - ai) * e), n = Math.hypot(v[0], v[1], v[2]);
   return v.map((vi) => vi / n);
+}
+
+// Using: a cursor in view space, like the lens, that glides between spots on the front and acts on them.
+// PTR is its angular radius, PRESS how wide a click dents, and a click's ripple runs out over RIPPLE_MS.
+const PTR = 0.45, PRESS = 0.5, RIPPLE_MS = 600;
+/** The cursor's k-th resting spot: the lens's spots, further along so the two don't move alike. */
+const mark = (k: number) => spot(k + 57);
+const slide = (a: number[], b: number[], e: number) => {
+  const v = a.map((ai, j) => ai + (b[j] - ai) * e), n = Math.hypot(v[0], v[1], v[2]);
+  return v.map((vi) => vi / n);
+};
+/** A dot's weight under a soft disc `w` rad wide, from its angle `ang` off the centre. */
+const bump = (ang: number, w: number) => (ang < w ? (1 - (ang / w) ** 2) ** 2 : 0);
+/** Tap: every TAP ms the cursor glides to the next spot over the first 35%, settles, and clicks halfway. */
+const TAP = 1400;
+function tapAt(t: number) {
+  const k = Math.floor(t / TAP), u = t / TAP - k;
+  const at = slide(mark(k), mark(k + 1), u < 0.35 ? ease(u / 0.35) : 1);
+  return { at, click: mark(u < 0.5 ? k : k + 1), since: (u < 0.5 ? u + 0.5 : u - 0.5) * TAP };
+}
+/** How far a click is pressed `s` ms after it: in over 60ms, out over the next 240ms. */
+const pressOf = (s: number) => (s < 60 ? s / 60 : Math.max(0, 1 - (s - 60) / 240) ** 2);
+/** Using: its cursor, the classic arrow's outline, x right and y down from its tip, scaled to ARROW_H sphere radii tall. */
+const ARROW_H = 1;
+const ARROW = [[0, 0], [0, 16], [4, 12], [7, 18], [9, 17], [6, 11], [11, 11]].map(([x, y]) => [(x / 18) * ARROW_H, (y / 18) * ARROW_H]);
+/** Whether (x, y) falls inside `poly`, by counting the edges a ray from it crosses. */
+function inside(poly: number[][], x: number, y: number) {
+  let hit = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i], [xj, yj] = poly[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) hit = !hit;
+  }
+  return hit;
+}
+/** Using's tip for a cursor spot: pulled in and up-left, so the arrow hanging below it stays on the face. */
+const HOME = [-0.3, 0.5];
+const onFace = (x: number, y: number) => [x, y, Math.sqrt(Math.max(0, 1 - x * x - y * y))];
+const tipOf = (p: number[]) => onFace(HOME[0] + 0.35 * p[0], HOME[1] + 0.35 * p[1]);
+/** Using given a direction: every AIM ms it glides out from its rest that way, clicks, and comes back. */
+const AIM = 1800;
+function aimAt(t: number, phi: number) {
+  const u = (t % AIM) / AIM;
+  const e = u < 0.3 ? ease(u / 0.3) : u < 0.6 ? 1 : u < 0.85 ? 1 - ease((u - 0.6) / 0.25) : 0;
+  const out = (s: number) => onFace(HOME[0] + 0.3 * s * Math.cos(phi), HOME[1] + 0.3 * s * Math.sin(phi));
+  return { at: out(e), click: out(1), since: (u < 0.45 ? u + 0.55 : u - 0.45) * AIM };
+}
+/** Zoom: every ZOOM ms the face swells toward you over a quarter, holds, and eases back. */
+const ZOOM = 2600;
+/**
+ * Using · Snap and Idle · Blink, on one BEAT. Snap spins for SPIN ms of it, then stops dead for the rest, with a
+ * flash as it stops. Blink's lids close from top and bottom over 120ms, meet for 60ms, and part
+ * over 250ms; it returns how far from the middle they are.
+ */
+const BEAT = 2600, SPIN = 2100;
+function snapAt(t: number) {
+  const u = (t % BEAT) - SPIN;
+  return u < 0 ? 0 : Math.exp(-u / 220);
+}
+function blinkAt(t: number) {
+  const u = t % BEAT;
+  return u < 120 ? 1.2 * (1 - ease(u / 120)) : u < 180 ? 0 : u < 430 ? 1.2 * ease((u - 180) / 250) : 1.2;
+}
+/** Record: a recording light's pulse, from 0 (dim and small) to 1 and back every REC ms in straight lines, never resting at either end. */
+const REC = 1200;
+const recAt = (t: number) => Math.abs(1 - 2 * ((t % REC) / REC));
+function zoomAt(t: number) {
+  const u = (t % ZOOM) / ZOOM;
+  return u < 0.25 ? ease(u / 0.25) : u < 0.5 ? 1 : u < 0.75 ? 1 - ease((u - 0.5) / 0.25) : 0;
+}
+/** Scroll: the sphere rolls up FLING rad a FLICK at a time, fast at first and coasting to a stop. */
+const FLICK = 1500, FLING = 1.1;
+function scrollAt(t: number) {
+  const k = Math.floor(t / FLICK), x = Math.min(1, (t / FLICK - k) / 0.75);
+  return { by: (k + 1 - (1 - x) ** 3) * FLING, pace: (1 - x) ** 2 };
+}
+/** The ways Scroll goes, as a page scrolls, by their angle on screen in degrees: right 0, up 90. */
+const DIRECTIONS = { right: 0, "up-right": 45, up: 90, "up-left": 135, left: 180, "down-left": 225, down: 270, "down-right": 315 };
+export type OrbDirection = keyof typeof DIRECTIONS;
+/** Scroll without a direction: each flick carries the face its own way on screen: up, down, up-right, left, right, down-left. */
+const PAN = [90, 270, 45, 180, 0, 225].map((deg) => (deg * Math.PI) / 180);
+/** The 3×3 turn (row-major) by `th` rad that carries the front of the sphere `phi` rad round from right on screen. */
+function panTurn(phi: number, th: number) {
+  // The axis lies on screen, square to the way the face moves.
+  const ax = -Math.sin(phi), ay = Math.cos(phi), s = Math.sin(th), c = Math.cos(th), v = 1 - c;
+  return [c + ax * ax * v, ax * ay * v, ay * s, ax * ay * v, c + ay * ay * v, -ax * s, -ay * s, ax * s, c];
+}
+const times = (m: number[], n: number[]) =>
+  m.map((_, i) => m[i - (i % 3)] * n[i % 3] + m[i - (i % 3) + 1] * n[(i % 3) + 3] + m[i - (i % 3) + 2] * n[(i % 3) + 6]);
+/**
+ * Type: a short paragraph typed onto the face, held, then cleared. TEXT is its lines, "x" a letter
+ * and " " a space, so words read as bars with gaps between. Each character is a cell CELL wide from
+ * LEFT, and lines sit LEAD apart down from TOP, in sphere radii on screen.
+ */
+const TEXT = ["xxxx xxx xx", "xxxxx xx xxxx", "xxx xxxxx"];
+const CELL = 0.09, LEAD = 0.3, TOP = 0.33, LEFT = -0.5;
+/** Every key in order, with when it lands: 70–130ms a letter, longer after a word, longer still at a line's end. */
+const KEYS = (() => {
+  let at = 0;
+  return TEXT.flatMap((line, row) =>
+    [...line].map((ch, col) => {
+      const key = { row, col, at };
+      at += ch === " " ? 200 : col === line.length - 1 ? 350 : 70 + 60 * hash(row * 31 + col);
+      return key;
+    }),
+  );
+})();
+/** Which key types each cell, by row then column. */
+const KEY_OF = TEXT.map((_, row) => KEYS.flatMap((k, i) => (k.row === row ? [i] : [])));
+const TYPED = KEYS[KEYS.length - 1].at, PARAGRAPH = TYPED + 1300;
+function typeAt(t: number) {
+  const c = t % PARAGRAPH;
+  let n = 0;
+  while (n < KEYS.length && KEYS[n].at <= c) n++;
+  const since = n ? c - KEYS[n - 1].at : Infinity;
+  // The caret waits where the next key lands, or after the last one; it blinks only while idle.
+  const next = KEYS[n] ?? { row: TEXT.length - 1, col: TEXT[TEXT.length - 1].length };
+  const blink = since < 300 ? 1 : +(Math.floor(c / 450) % 2 === 0);
+  return { n, since, blink, caret: [LEFT + next.col * CELL, TOP - next.row * LEAD], fade: c < TYPED + 900 ? 1 : Math.max(0, 1 - (c - TYPED - 900) / 300) };
 }
 
 /**
@@ -254,6 +390,11 @@ export type OrbOptions = OrbLook & {
   dotSize?: number;
   /** How far it's seen from above, in degrees: 0 side on, 90 straight down. Tuned to 20. */
   tilt?: number;
+  /**
+   * Which way Using · Scroll scrolls, as a page does: "down" carries the face up. Using clicks out on
+   * that side, like a back button for "left". Without one, Scroll pans every way and Using clicks anywhere.
+   */
+  direction?: OrbDirection;
 };
 
 /**
@@ -263,10 +404,12 @@ export type OrbOptions = OrbLook & {
  */
 export function mountOrb(
   svg: SVGSVGElement,
-  { state: asked, variant, size = 20, speed = 1, label, shape, render = DOTS, density = 1, dotSize = 1, tilt = 20 }: OrbOptions = {},
+  { state: asked, variant, size = 20, speed = 1, label, shape, render = DOTS, density = 1, dotSize = 1, tilt = 20, direction }: OrbOptions = {},
 ) {
-  // A state that doesn't exist (from plain JS, say) falls back to base, and a variant the state doesn't have to its default.
-  const which: OrbState = asked && Object.hasOwn(VARIANTS, asked) ? asked : "base";
+  // A state that doesn't exist (from plain JS, say) falls back to idle, and a variant the state doesn't have to its default.
+  // Idle was once called base, so that name still finds it.
+  const named = asked === "base" ? "idle" : asked;
+  const which: OrbState = named && Object.hasOwn(VARIANTS, named) ? named : "idle";
   const own = variant !== "default" && (VARIANTS[which] as readonly string[]).includes(variant ?? "");
   const state = (own ? `${which}-${variant}` : which) as Look;
   const attrs = { width: size, height: size, viewBox: `0 0 ${size} ${size}`, fill: "currentColor" };
@@ -281,7 +424,8 @@ export function mountOrb(
     svg.removeAttribute("aria-label");
   }
   // Background's orb has a quarter of the dots, so each comes out twice the size.
-  const dens = state === "background" ? 1 : 4;
+  // Using draws its arrow, and Type its text, in the dots: that takes about 1000 of them, finer, however small the orb.
+  const dens = state === "background" ? 1 : state === "using" || state === "using-type" ? Math.max(4, 1000 / size) : 4;
   const count = Math.max(8, Math.round(size * dens * density));
   // Dots shrink as they multiply, so the sphere's coverage holds steady.
   const form = typeof shape === "function" ? { points: shape } : shape;
@@ -299,9 +443,24 @@ export function mountOrb(
     : [];
   const walks: number[][] = Array.from({ length: state === "reasoning-twins" ? 2 : 1 }, () => []);
   let hops = 0;
+  // Scroll's whole flicks so far when it pans, so each frame stacks only the new ones.
+  let panned = { k: 0, m: [1, 0, 0, 0, 1, 0, 0, 0, 1] };
 
   const draw = (t: number) => {
     const period = PERIOD[state], yaw = yawOf(state, t);
+    const scroll = state === "using-scroll" ? scrollAt(t) : null;
+    const way = direction && DIRECTIONS[direction];
+    let pan: number[] | null = null;
+    if (scroll && way !== undefined) {
+      // Given a direction, Scroll keeps to it, and the face moves against it, as a page's content does.
+      pan = panTurn((way * Math.PI) / 180 + Math.PI, scroll.by);
+    } else if (scroll) {
+      // Without one it pans: the flicks so far, stacked up once each, then the one under way on top.
+      const k = Math.floor(t / FLICK);
+      if (k < panned.k) panned = { k: 0, m: [1, 0, 0, 0, 1, 0, 0, 0, 1] };
+      for (; panned.k < k; panned.k++) panned.m = times(panTurn(PAN[panned.k % PAN.length], FLING), panned.m);
+      pan = times(panTurn(PAN[k % PAN.length], scroll.by - k * FLING), panned.m);
+    }
     // Working · Gyro's axis circles every 5s like a spinning top's, tipping ±10° toward you and leaning ±12° side to side.
     const gyro = state === "working-gyro" ? (t / 5000) * TAU : null;
     const pitch = (((flat ? 0 : tilt) + (form?.tip ?? 0) + (gyro === null ? 0 : 10 * Math.cos(gyro))) * Math.PI) / 180;
@@ -370,6 +529,22 @@ export function mountOrb(
       sweep = { at: -1.15 + 2.3 * Math.min(1, u / 0.7), hold: u < 0.7 ? 1 : release };
     }
 
+    let tap: ReturnType<typeof tapAt> | null = null;
+    if (state === "using-tap") tap = tapAt(t);
+    // Using's cursor is an arrow drawn in the dots under it.
+    const outline = state === "using";
+    if (outline) {
+      // Given a direction it keeps clicking that side; without one it wanders the face.
+      const p = way === undefined ? tapAt(t) : null;
+      tap = p ? { ...p, at: tipOf(p.at), click: tipOf(p.click) } : aimAt(t, ((way ?? 0) * Math.PI) / 180);
+    }
+    // The arrow shrinks toward its tip as a click presses.
+    const k = outline && tap ? 1 - 0.15 * pressOf(tap.since) : 1;
+    const type = state === "using-type" ? typeAt(t) : null;
+    const zoom = state === "using-zoom" ? zoomAt(t) : null;
+    const flash = state === "using-snap" ? snapAt(t) : null;
+    const lids = state === "idle-blink" ? blinkAt(t) : null;
+    const rec = state === "using-record" ? recAt(t) : null;
     pts.forEach(([x, y, z], i) => {
       // Twist turns each dot by an angle that grows with its height: top and bottom opposite ways.
       const turn = yaw + TWIST * tw * y;
@@ -378,7 +553,9 @@ export function mountOrb(
       let vx = x * lc + z * ly, vy = y * ct - z1 * st;
       // Which way the spin carries this dot across the screen, for renders that draw along it.
       const sx = z1, sy2 = vx * st;
-      const vz = y * st + z1 * ct, d = (vz + 1) / 2;
+      let vz = y * st + z1 * ct;
+      if (pan) [vx, vy, vz] = [0, 3, 6].map((j) => pan[j] * vx + pan[j + 1] * vy + pan[j + 2] * vz);
+      const d = (vz + 1) / 2;
       let r = (0.5 + 1.4 * d) * rs;
       // Opacity ramps from 0 just behind the rim to 1 at the front, so the back fades instead of leaving a haze.
       let a = Math.max(0, (d - 0.3) / 0.7);
@@ -463,6 +640,69 @@ export function mountOrb(
         a = a * 0.5 + (1 - a * 0.5) * w;
         r *= 1 + 1.1 * w;
       }
+      if (tap) {
+        // The angle off a view-space direction, by direction like the lens.
+        const n = Math.hypot(vx, vy, vz) || 1;
+        const off = (p: number[]) => Math.acos(Math.min(1, Math.max(-1, (vx * p[0] + vy * p[1] + vz * p[2]) / n)));
+        // Using rests darker, so the arrow stands out where its dots crowd together at small sizes.
+        a *= outline ? 0.25 : 0.5;
+        // A click dents what's under it for 300ms, and a ring runs out from it, fading.
+        const s = tap.since, ptr = outline ? 0 : bump(off(tap.at), PTR), ak = off(tap.click);
+        const press = pressOf(s), pw = press * bump(ak, PRESS);
+        const run = Math.min(1, s / RIPPLE_MS);
+        const ring = Math.exp(-(((ak - (0.15 + 1.3 * (1 - (1 - run) ** 2))) / 0.18) ** 2)) * (1 - run) ** 2;
+        vx *= 1 - 0.14 * pw;
+        vy *= 1 - 0.14 * pw;
+        r *= (1 - 0.35 * pw) * (1 + 0.7 * Math.max(ring, ptr * (1 - press)));
+        a += (1 - a) * Math.max(ptr, ring);
+        if (outline && inside(ARROW, (vx - tap.at[0]) / k, (tap.at[1] - vy) / k)) {
+          // The dots inside the arrow light up, on the near side only. They barely grow, or they'd blur its edge.
+          const lit = Math.min(1, Math.max(0, (d - 0.5) / 0.2));
+          r *= 1 + 0.15 * lit;
+          a += (1 - a) * lit;
+        }
+      }
+      if (type) {
+        // The paragraph lights cell by cell as it's typed, the newest letter brightest, spaces left
+        // dark. The caret is an upright bar where the next key lands. The rest sits dark, like Using.
+        a *= 0.25;
+        const row = Math.round((TOP - vy) / LEAD), col = Math.floor((vx - LEFT) / CELL), key = KEY_OF[row]?.[col];
+        let g = 0;
+        if (key !== undefined && key < type.n && TEXT[row][col] === "x" && Math.abs(TOP - row * LEAD - vy) < 0.085)
+          g = 0.75 + (key === type.n - 1 ? 0.25 * Math.exp(-type.since / 120) : 0);
+        const [cx, cy] = type.caret;
+        if (Math.abs(vy - cy) < 0.1) g = Math.max(g, type.blink * Math.exp(-(((vx - cx) / 0.04) ** 2)));
+        a += (1 - a) * g * type.fade * Math.min(1, Math.max(0, (d - 0.5) / 0.2));
+      }
+      if (zoom) {
+        // The front swells out toward the rim and its dots grow, as if you'd moved closer. Past the rim they fade.
+        const w = zoom * Math.max(0, vz);
+        vx *= 1 + 0.45 * w;
+        vy *= 1 + 0.45 * w;
+        r *= 1 + 0.8 * w;
+        a *= Math.min(1, Math.max(0, (1.05 - Math.hypot(vx, vy)) / 0.1));
+      }
+      // Scroll brightens with its pace, so a flick reads as a burst and the coast as settling.
+      if (scroll) a *= 0.55 + 0.45 * scroll.pace;
+      if (flash !== null) {
+        // A sphere at 55% lights up as it stops, and dims back while it holds.
+        a *= 0.55;
+        r *= 1 + 0.25 * flash;
+        a += (1 - a) * flash;
+      }
+      if (lids !== null) {
+        // Shut beyond the lids, with their edges lit as they close and part.
+        const edge = Math.exp(-(((Math.abs(vy) - lids) / 0.06) ** 2)) * (lids < 1.2 ? 1 : 0);
+        a *= Math.min(1, Math.max(0, (lids - Math.abs(vy)) / 0.08));
+        r *= 1 + 0.4 * edge;
+        a += (1 - a) * edge * Math.min(1, Math.max(0, (d - 0.4) / 0.3));
+      }
+      if (rec !== null) {
+        // The whole orb pulses like a recording light, dropping to a third and 8% smaller at its low.
+        vx *= 0.92 + 0.08 * rec;
+        vy *= 0.92 + 0.08 * rec;
+        a *= 0.3 + 0.7 * rec;
+      }
       if (roll) [vx, vy] = [vx * cr - vy * sr, vx * sr + vy * cr];
       drawer.dot(i, c + vx * R, c - vy * R, r, a, sx, -sy2);
     });
@@ -472,13 +712,14 @@ export function mountOrb(
   const look = `${state}@${speed}`;
   draw(tick(look, performance.now(), speed));
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  // Only orbs on screen redraw; a page of them off screen would otherwise cost every frame.
-  let visible = true, raf = 0, dead = false;
+  // Only orbs on screen redraw, and only they move their look's clock on. So an orb starts from its
+  // first frame when it first comes into view, rather than partway through, and picks up where it
+  // left off when it comes back. The observer reports at once, so it starts out unseen.
+  let visible = false, raf = 0, dead = false;
   const io = new IntersectionObserver((es) => (visible = es[es.length - 1].isIntersecting));
   io.observe(svg);
   function frame(now: number) {
-    const t = tick(look, now, speed);
-    if (visible) draw(t);
+    if (visible) draw(tick(look, now, speed));
     raf = requestAnimationFrame(frame);
   }
   // Paused, it stops ticking too: alone it picks up where it stopped, and beside others of its look it rejoins them in step.

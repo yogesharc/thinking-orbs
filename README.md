@@ -2,7 +2,7 @@
 
 # Thinking Orbs
 
-A React component library of animated AI agent status indicator orbs. Thinking, searching, compacting and more well-thought-out orbs built with attention to detail on every state and variant. 8 states, 15 variants, 5 shapes and 8 render styles to fit every state an agent goes through and your design style.
+A React component library of animated AI agent status indicator orbs. Thinking, searching, compacting, using a browser and more well-thought-out orbs built with attention to detail on every state and variant. 9 states, 23 variants, 5 shapes and 8 render styles to fit every state an agent goes through and your design style.
 
 Works in React or plain JS, with no dependencies.
 

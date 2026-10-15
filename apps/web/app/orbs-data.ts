@@ -1,13 +1,16 @@
 import type { ChatRow } from "@/components/chat-mock";
 import type { OrbLook } from "@/registry/orb/orb";
+import { VARIANTS } from "@/registry/orb/orb-core";
 
 /**
  * `orb` is what `<Orb>` takes: the state and, for a variation, its variant. `label` is the line it sits beside
  * in the chat, the way Dray words that state; `thought` makes it a thinking line, which names itself
  * plainly and streams a preview of the thought underneath. `done` is the row it leaves in the
- * transcript once the reader scrolls past it.
+ * transcript once the reader scrolls past it. `cycle` makes one card take turns through those variants
+ * of its state, a few seconds each, and keeps it out of the chat: the line stays on the orb before it.
+ * `isNew` tags the card New.
  */
-export type Item = { name: string; orb: OrbLook; label: string; thought?: string; done?: ChatRow };
+export type Item = { name: string; orb: OrbLook; label: string; thought?: string; done?: ChatRow; cycle?: readonly string[]; isNew?: boolean };
 /** Every orb, in the order one turn would reach them, so scrolling the list writes the transcript. */
 export const orbs: Item[] = [
   { name: "Working", orb: { state: "working" }, label: "Working", done: { verb: "Read", target: "login/page.tsx" } },
@@ -18,6 +21,8 @@ export const orbs: Item[] = [
   { name: "Background Tasks", orb: { state: "background" }, label: "1 Background Task", done: { verb: "Bash", target: "pnpm test --watch" } },
   { name: "Reasoning · Twins", orb: { state: "reasoning", variant: "twins" }, label: "Thinking", thought: "Tests pass. Worth loading the page on the dev server to be sure…", done: "Thought" },
   { name: "Background Tasks · Spiral", orb: { state: "background", variant: "spiral" }, label: "2 Background Tasks", done: { verb: "Bash", target: "pnpm dev" } },
+  // Checking the page in a browser: the card takes turns through what the agent does there.
+  { name: "Browser / Computer Use", orb: { state: "using" }, label: "Using browser", cycle: VARIANTS.using, isNew: true },
   { name: "Retrying", orb: { state: "retrying" }, label: "Retrying — attempt 2 of 10" },
   // One compaction, the live line changing orb as you pass its variations; the background tasks drain once it's done.
   { name: "Compacting", orb: { state: "compacting" }, label: "Compacting context" },
@@ -31,7 +36,8 @@ export const orbs: Item[] = [
   },
   // The turn never ends: after the reply, the agent carries on.
   { name: "Waiting", orb: { state: "waiting" }, label: "Waiting for usage limit to reset" },
-  { name: "Base", orb: { state: "base" }, label: "Working" },
+  { name: "Idle", orb: { state: "idle" }, label: "Working" },
+  { name: "Idle · Blink", orb: { state: "idle", variant: "blink" }, label: "Working", isNew: true },
 ];
 
 export type Mode = "dark" | "light";

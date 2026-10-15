@@ -40,7 +40,7 @@ mountOrb(document.querySelector("svg"), { state: "working", shape: cube, render:
 
 /** `react` marks the props only the React component takes. */
 export const props = [
-  { name: "state", type: "OrbState", fallback: `"base"`, note: "What the agent is doing." },
+  { name: "state", type: "OrbState", fallback: `"idle"`, note: "What the agent is doing." },
   { name: "variant", type: "OrbVariant", fallback: `"default"`, note: "Which look of that state." },
   { name: "size", type: "number", fallback: "20", note: "Width and height in px." },
   { name: "speed", type: "number", fallback: "1", note: "Speed multiplier." },
@@ -49,6 +49,7 @@ export const props = [
   { name: "density", type: "number", fallback: "1", note: "Dot count multiplier." },
   { name: "dotSize", type: "number", fallback: "1", note: "Dot size multiplier." },
   { name: "tilt", type: "number", fallback: "20", note: "Viewing angle from above, in degrees." },
+  { name: "direction", type: "OrbDirection", fallback: "—", note: "Where using clicks, or which way its scroll goes. Anywhere without one." },
   { name: "paused", type: "boolean", fallback: "false", note: "Freezes the animation.", react: true },
   { name: "label", type: "string", fallback: "—", note: "Name for screen readers." },
   { name: "className", type: "string", fallback: "—", note: "Tint it with text-* classes.", react: true },
@@ -60,10 +61,23 @@ const states: [string, string, [string, string][]][] = [
   ["reasoning", "Thinking.", [["default", "One spark wanders over it."], ["twins", "Two sparks wander at once."]]],
   ["searching", "Searching the web or files.", [["default", "A lens hops between spots."], ["lighthouse", "A beam sweeps round, like a lighthouse."]]],
   ["background", "Background tasks running, like a dev server.", [["default", "Fewer, bigger dots."], ["spiral", "The dots wound into spiral arms."]]],
+  [
+    "using",
+    "Using a browser or computer, as a person would.",
+    [
+      ["default", "An arrow drawn in the dots glides about and clicks. With a `direction`, it clicks out on that side, like a back button for `\"left\"`."],
+      ["tap", "A glowing cursor glides about, clicks, and sends a ripple out."],
+      ["scroll", "Rolls in flicks that coast to a stop, the way `direction` scrolls a page. Without one, each flick goes a new way."],
+      ["type", "Lines of text type out across it, word by word, after a caret."],
+      ["zoom", "The face swells toward you and eases back."],
+      ["snap", "Stops dead with a flash, like a screenshot, then turns on."],
+      ["record", "Pulses dim and bright, like a recording light."],
+    ],
+  ],
   ["retrying", "Retrying after an error.", [["default", "Spins, then winds back."], ["surge", "Each turn launches fast and eases out."]]],
   ["compacting", "Compacting the context window.", [["default", "Packs tight, then springs back past loose."], ["squeeze", "Packs while wringing the top against the bottom."], ["fuse", "Packs along a burning fuse line, with no bounce."]]],
   ["waiting", "Waiting for a usage limit to reset.", [["default", "A comet spirals round it."]]],
-  ["base", "Idle, or anything without its own state.", [["default", "A plain spin."]]],
+  ["idle", "Idle, or anything without its own state. It was called `base`, which still works.", [["default", "A plain spin."], ["blink", "Blinks now and then, its lids closing from top and bottom."]]],
 ];
 
 const code = (lang: string, src: string) => `\`\`\`${lang}\n${src}\n\`\`\``;
