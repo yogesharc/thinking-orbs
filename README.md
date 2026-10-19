@@ -33,26 +33,15 @@ Props, every state and variant, shapes and renders, and use without React are al
 
 ## SwiftUI
 
-The same orbs, drawn natively for iOS 17 and macOS 14, with no dependencies. In Xcode, File › Add Package Dependencies, and paste `https://github.com/yogesharc/thinking-orbs`. Or in a `Package.swift`:
-
-```swift
-.package(url: "https://github.com/yogesharc/thinking-orbs", from: "0.1.2"),
-// and in your target's dependencies:
-.product(name: "ThinkingOrbs", package: "thinking-orbs"),
-```
+For iOS 17 and macOS 14. In Xcode, File › Add Package Dependencies, and paste `https://github.com/yogesharc/thinking-orbs`.
 
 ```swift
 import ThinkingOrbs
 
-HStack(spacing: 8) {
-    Orb(state: .reasoning, label: "Thinking")
-    Text("Thinking")
-}
+Orb(state: .reasoning)
 ```
 
-`Orb` takes the web props, typed: `state`, `variant` (`.default` if it's not one of the state's own), `size` in points, `speed`, `paused`, `label`, `density`, `dotSize`, `tilt` and `direction`. It draws in the foreground style, so `.foregroundStyle(.blue)` tints it. Shapes and renders are web-only for now. Each orb is one `Canvas` on a `TimelineView`, so a `List` full of them needs no timers, and with Reduce Motion they hold still. Every orb with the same state, variant and speed runs on one clock, so they move in step.
-
-`swift run OrbGallery` opens every state and variant side by side, to hold up against the [playground](https://thinkingorbs.com/playground).
+It takes the same props as the React `Orb`, except shapes and renders. Tint it with `.foregroundStyle`.
 
 ## Working on it
 
