@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 const title = "Thinking Orbs - AI Status Indicator Components for React";
 const description =
-  "Thinking Orbs is a React component library of well-crafted, animated orbs for AI: thinking, searching, compacting and more status indicators. Free, open source.";
+  "Thinking Orbs is a component library of well-crafted, animated orbs for AI in React, JS and SwiftUI: thinking, searching, compacting and more status indicators. Free, open source.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.thinkingorbs.com"),

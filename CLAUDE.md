@@ -32,11 +32,16 @@ apps/web/            Next.js 16 site — also serves the registry
   registry/orb/      what ships: orb-core.ts (all the drawing, plain JS, `mountOrb`), orb.tsx (the React <Orb> around it), and the opt-in shapes.ts and renders.ts
   app/               the homepage; app/llms.ts holds the docs as markdown; app/r/[item] (orb, orb-shapes, orb-renders .json) and app/llms.txt serve them
 packages/thinkingorbs/  the npm package; `tsc` compiles both registry/orb files into dist/
+packages/swift/         the SwiftUI port of orb-core.ts, built by the root Package.swift
 ```
 
 ### The orb
 
-`registry/orb/orb-core.ts` draws every orb: one SVG of imperatively created circles, redrawn each frame. `VARIANTS` lists every public `state` and the `variant`s it comes in, `default` first (`<Orb state="working" variant="gyro" />`); variants are named after their motion. Internally the drawing keys on a `Look`: the state alone for `default`, else `state-variant`. Where the dots sit comes from `distribute()` (a Fibonacci sphere, or spiral arms for `background-spiral`); `density`, `dotSize` and `tilt` tune it; every behaviour on top of the spin is a branch keyed on the state inside the one `draw` loop, and spin periods come from `PERIOD`. Renaming a state or variant means changing it in `orb-core.ts`, `app/orbs.tsx`, `app/llms.ts` and `packages/thinkingorbs/README.md`.
+`registry/orb/orb-core.ts` draws every orb: one SVG of imperatively created circles, redrawn each frame. `VARIANTS` lists every public `state` and the `variant`s it comes in, `default` first (`<Orb state="working" variant="gyro" />`); variants are named after their motion. Internally the drawing keys on a `Look`: the state alone for `default`, else `state-variant`. Where the dots sit comes from `distribute()` (a Fibonacci sphere, or spiral arms for `background-spiral`); `density`, `dotSize` and `tilt` tune it; every behaviour on top of the spin is a branch keyed on the state inside the one `draw` loop, and spin periods come from `PERIOD`. Renaming a state or variant means changing it in `orb-core.ts`, `app/orbs.tsx`, `app/llms.ts`, `packages/thinkingorbs/README.md` and the Swift port.
+
+### The Swift port
+
+`packages/swift/Sources/ThinkingOrbs/OrbCore.swift` is a line-for-line port of `orb-core.ts` (no shapes or renders), and `Orb.swift` wraps it in a SwiftUI `Canvas` on a `TimelineView(.animation)`. It doesn't build from the TypeScript, so any change to the drawing in `orb-core.ts` has to be made there too, keeping the same order of operations so the two draw the same frame. Watch JS truthiness: `if (zoom)` skips at 0, where Swift's `if let` wouldn't. `Package.swift` sits at the repo root because SwiftPM only reads a manifest there; `OrbGallery` is its demo app (`swift run OrbGallery`).
 
 The core ships only the default shape and render. Other shapes and renders are opt-in plug-ins, so they cost nothing unless imported: `registry/orb/shapes.ts` (`OrbShape`: `points(count, look)` plus optional `scale` and `tip`) and `registry/orb/renders.ts` (`OrbRender`: `mount` returns a per-point `dot()` and a per-frame `frame()`; `flat` renders like halftone and lines drop the tilt, and Working's ring runs straight down). They ship as `@yogesharc/thinking-orbs/shapes` and `@yogesharc/thinking-orbs/renders`, and as the `orb-shapes` and `orb-renders` registry items. Not every state is tuned for every extra, by design.
 

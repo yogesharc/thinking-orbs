@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ChatMock, type ChatRow } from "@/components/chat-mock";
 import { Orb, type OrbLook } from "@/registry/orb/orb";
-import { EXTRAS, EXTRAS_VANILLA, LLMS, props, REPO, USAGE, VANILLA } from "./llms";
+import { EXTRAS, EXTRAS_VANILLA, LLMS, props, REPO, SWIFT_PACKAGE, SWIFT_URL, SWIFTUI, swiftProps, USAGE, VANILLA } from "./llms";
 import { LG, orbs, theme, XL, type Item, type Mode } from "./orbs-data";
 
 /** The same orbs for the grid: each state followed by its variations, states in the order the story meets them. */
@@ -47,9 +47,9 @@ function CopyPrompt({ className = "" }: { className?: string }) {
 
 /**
  * The install command, copied on click, with Copy prompt inside the bar when `prompt` is set. The hero leaves
- * it out: its 20rem column has no room for both beside the scoped name.
+ * it out: its 20rem column has no room for both beside the scoped name. A `url` is copied as it is, with no prompt sign.
  */
-function Install({ command = COMMAND, prompt }: { command?: string; prompt?: boolean }) {
+function Install({ command = COMMAND, prompt, url }: { command?: string; prompt?: boolean; url?: boolean }) {
   const [copied, copy] = useCopy(command);
   const words = command.split(" ");
   return (
@@ -64,7 +64,7 @@ function Install({ command = COMMAND, prompt }: { command?: string; prompt?: boo
           <span className="text-muted-foreground">Copied</span>
         ) : (
           <>
-            <span className="text-muted-foreground">$ </span>
+            {!url && <span className="text-muted-foreground">$ </span>}
             {words.slice(0, -1).join(" ")}{" "}
             <span className={TONES[1]}>{words.at(-1)}</span>
           </>
@@ -247,9 +247,9 @@ export function OrbGrid({ className = "sm:grid-cols-2 xl:grid-cols-3" }: { class
 
 /**
  * Just enough TSX highlighting for our own snippets, in match order: comments, strings, keywords,
- * JSX tag names and JSX attribute names. Colours sit mid-lightness so they read in both themes.
+ * JSX tag names and JSX attribute names. A keyword before a colon is Swift's argument label, like `from:`. Colours sit mid-lightness so they read in both themes.
  */
-const SYNTAX = /(\/\/.*)|("[^"]*")|\b(import|from|export|function|return|const|type)\b|(?<=<\/?)([A-Za-z][\w.]*)|\b([a-zA-Z]+)(?==)/g;
+const SYNTAX = /(\/\/.*)|("[^"]*")|\b(import|from|export|function|return|const|type|struct|var|some)\b(?!:)|(?<=<\/?)([A-Za-z][\w.]*)|\b([a-zA-Z]+)(?==)/g;
 const TONES = [
   "text-muted-foreground italic",
   "text-[oklch(0.8_0.16_155)] light:text-[oklch(0.68_0.13_155)]",
@@ -385,7 +385,7 @@ export function Hero({ license, installs }: { license?: boolean; installs?: numb
           Thinking Orbs
           <span className="block text-muted-foreground">for AI Interfaces</span>
         </h1>
-        <p className="text-sm text-muted-foreground">A component library of well-crafted, animated AI status indicators for React. No dependencies, 3.8&nbsp;KB gzipped.</p>
+        <p className="text-sm text-muted-foreground">A component library of well-crafted, animated AI status indicators for React, JS and SwiftUI. No dependencies, 3.8&nbsp;KB gzipped.</p>
       </div>
       <Install />
       <div className="flex items-center gap-3">
@@ -637,18 +637,20 @@ export function StoryChat({ picked: chosen, wide, className = "" }: { picked: It
   );
 }
 
-/** Ways to install: the package from each package manager, or shadcn to copy the React source in. */
+/** Ways to install: the package from each package manager, shadcn to copy the React source in, or the Swift package's URL. */
 const INSTALLS = [
   { id: "npm", label: "npm", command: COMMAND },
   { id: "pnpm", label: "pnpm", command: "pnpm add @yogesharc/thinking-orbs" },
   { id: "yarn", label: "yarn", command: "yarn add @yogesharc/thinking-orbs" },
   { id: "bun", label: "bun", command: "bun add @yogesharc/thinking-orbs" },
   { id: "shadcn", label: "shadcn", command: "npx shadcn@latest add https://thinkingorbs.com/r/orb.json" },
+  { id: "swift", label: "Swift", command: SWIFT_URL },
 ] as const;
 
 const LANGS = [
   { id: "react", label: "React" },
   { id: "js", label: "JS" },
+  { id: "swift", label: "SwiftUI" },
 ] as const;
 
 const toc = [
@@ -657,18 +659,45 @@ const toc = [
   { id: "usage", label: "Usage" },
 ];
 
-/** Installation and Usage: which package manager and which language to show are theirs alone. `llms` ends them with a link to /llms.txt. */
+/**
+ * Installation and Usage, each with its own tabs, except that Swift goes with SwiftUI: picking either
+ * picks both, and leaving either leaves both. `llms` ends them with a link to /llms.txt.
+ */
 export function Docs({ className = "", llms }: { className?: string; llms?: boolean }) {
   const [via, setVia] = useState<(typeof INSTALLS)[number]["id"]>("npm");
-  const [lang, setLang] = useState<"react" | "js">("react");
+  const [lang, setLang] = useState<(typeof LANGS)[number]["id"]>("react");
+  const install = (id: typeof via) => {
+    setVia(id);
+    if (id === "swift") setLang("swift");
+    else if (lang === "swift") setLang("react");
+  };
+  const language = (id: typeof lang) => {
+    setLang(id);
+    if (id === "swift") setVia("swift");
+    else if (via === "swift") setVia("npm");
+  };
+  const swift = lang === "swift";
   return (
     <div className={`max-w-xl min-w-0 ${className}`}>
       <Guide id="installation" title="Installation">
-        <p>Install Thinking Orbs from npm, or copy the React component into your project with shadcn. The React orb needs nothing but React, and the plain JS one needs nothing at all.</p>
+        <p>
+          Install Thinking Orbs from npm, or copy the React component into your project with shadcn. The React orb needs nothing but React, and the
+          plain JS one needs nothing at all. For iOS and macOS apps, there&apos;s a native SwiftUI package.
+        </p>
         <div className="flex flex-col gap-2">
-          <Tabs label="Install with" value={via} options={INSTALLS} onChange={setVia} />
-          <Install command={INSTALLS.find((o) => o.id === via)?.command ?? COMMAND} prompt />
+          <Tabs label="Install with" value={via} options={INSTALLS} onChange={install} />
+          <Install command={INSTALLS.find((o) => o.id === via)?.command ?? COMMAND} url={via === "swift"} prompt />
         </div>
+        {via === "swift" && (
+          <>
+            <p>
+              In Xcode, choose File › Add Package Dependencies, paste that URL, and add{" "}
+              <code className="font-mono text-foreground">ThinkingOrbs</code> to your app target. It needs iOS 17 or macOS 14. Or in a
+              Package.swift:
+            </p>
+            <Code>{SWIFT_PACKAGE}</Code>
+          </>
+        )}
         {via === "shadcn" && (
           <p>
             That copies the React source into <code className="font-mono text-foreground">components/</code>, yours to change,
@@ -680,13 +709,19 @@ export function Docs({ className = "", llms }: { className?: string; llms?: bool
       </Guide>
 
       <Guide id="usage" title="Usage">
-        <p>{lang === "react" ? "Import the Orb component and give it a state, and optionally a variant." : "Point it at any <svg> on the page and give it a state, and optionally a variant."}</p>
+        <p>
+          {lang === "react"
+            ? "Import the Orb component and give it a state, and optionally a variant."
+            : lang === "js"
+              ? "Point it at any <svg> on the page and give it a state, and optionally a variant."
+              : "Import ThinkingOrbs and give the Orb view a state, and optionally a variant. It draws in the foreground style, so .foregroundStyle tints it."}
+        </p>
         <div className="flex flex-col gap-2">
-          <Tabs label="Language" value={lang} options={LANGS} onChange={setLang} />
-          <Code>{lang === "react" ? USAGE : VANILLA}</Code>
+          <Tabs label="Language" value={lang} options={LANGS} onChange={language} />
+          <Code>{lang === "react" ? USAGE : lang === "js" ? VANILLA : SWIFTUI}</Code>
         </div>
         <div className="mt-4 flex items-baseline gap-2">
-          <h3 className="font-medium text-foreground">{lang === "react" ? "Props" : "Options"}</h3>
+          <h3 className="font-medium text-foreground">{lang === "react" ? "Props" : swift ? "Parameters" : "Options"}</h3>
           <span>All optional</span>
         </div>
         <div className="overflow-x-auto">
@@ -700,7 +735,7 @@ export function Docs({ className = "", llms }: { className?: string; llms?: bool
               </tr>
             </thead>
             <tbody>
-              {props.filter((p) => lang === "react" || !p.react).map((p) => (
+              {(swift ? swiftProps : props.filter((p) => lang === "react" || !p.react)).map((p) => (
                 <tr key={p.name} className="border-b border-foreground/10 align-top">
                   <td className="py-2 pr-4 font-mono text-foreground">{p.name}</td>
                   <td className="py-2 pr-4 font-mono">{p.type}</td>
@@ -712,15 +747,21 @@ export function Docs({ className = "", llms }: { className?: string; llms?: bool
           </table>
         </div>
         <h3 className="mt-4 font-medium text-foreground">Shapes and renders</h3>
-        <p>
-          The core ships one shape and one render. Other shapes and ways of drawing it are opt-in, so only what you import lands in your bundle.
-          Try them all in the{" "}
-          <Link href="/playground" className={UNDERLINE}>
-            playground
-          </Link>
-          .
-        </p>
-        <Code>{lang === "react" ? EXTRAS : EXTRAS_VANILLA}</Code>
+        {swift ? (
+          <p>The extra shapes and renders are web-only for now. The SwiftUI orb draws the default sphere of dots.</p>
+        ) : (
+          <>
+            <p>
+              The core ships one shape and one render. Other shapes and ways of drawing it are opt-in, so only what you import lands in your bundle.
+              Try them all in the{" "}
+              <Link href="/playground" className={UNDERLINE}>
+                playground
+              </Link>
+              .
+            </p>
+            <Code>{lang === "react" ? EXTRAS : EXTRAS_VANILLA}</Code>
+          </>
+        )}
         {llms && (
           <a href="/llms.txt" target="_blank" className={`self-start ${UNDERLINE}`}>
             llms.txt

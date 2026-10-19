@@ -25,6 +25,29 @@ orb.pause(); // hold it on its frame
 orb.play(); // carry on
 orb.destroy(); // remove it`;
 
+/** The Swift package: its URL for Xcode, and the lines for a Package.swift. */
+export const SWIFT_URL = `https://github.com/${REPO}`;
+export const SWIFT_PACKAGE = `// Package.swift
+.package(
+  url: "${SWIFT_URL}",
+  from: "0.1.2"
+),
+
+// and in your target's dependencies:
+.product(name: "ThinkingOrbs", package: "thinking-orbs"),`;
+
+export const SWIFTUI = `import SwiftUI
+import ThinkingOrbs
+
+struct Thinking: View {
+  var body: some View {
+    HStack(spacing: 8) {
+      Orb(state: .reasoning)
+      Text("Thinking")
+    }
+  }
+}`;
+
 /** The opt-in extras, in React and plain JS. */
 export const EXTRAS = `import { Orb } from "@yogesharc/thinking-orbs";
 import { cube } from "@yogesharc/thinking-orbs/shapes";
@@ -53,6 +76,20 @@ export const props = [
   { name: "paused", type: "boolean", fallback: "false", note: "Freezes the animation.", react: true },
   { name: "label", type: "string", fallback: "—", note: "Name for screen readers." },
   { name: "className", type: "string", fallback: "—", note: "Tint it with text-* classes.", react: true },
+];
+
+/** The SwiftUI view's parameters: the web props, typed, without shapes, renders or className. */
+export const swiftProps = [
+  { name: "state", type: "OrbState", fallback: ".idle", note: "What the agent is doing." },
+  { name: "variant", type: "OrbVariant", fallback: ".default", note: "Which look of that state." },
+  { name: "size", type: "CGFloat", fallback: "20", note: "Width and height in points." },
+  { name: "speed", type: "Double", fallback: "1", note: "Speed multiplier." },
+  { name: "density", type: "Double", fallback: "1", note: "Dot count multiplier." },
+  { name: "dotSize", type: "Double", fallback: "1", note: "Dot size multiplier." },
+  { name: "tilt", type: "Double", fallback: "20", note: "Viewing angle from above, in degrees." },
+  { name: "direction", type: "OrbDirection?", fallback: "nil", note: "Where using clicks, or which way its scroll goes. Anywhere without one." },
+  { name: "paused", type: "Bool", fallback: "false", note: "Freezes the animation." },
+  { name: "label", type: "String?", fallback: "nil", note: "What VoiceOver reads. Hidden from it without one." },
 ];
 
 /** Every state, what it's for, and its variants, each described by how it moves. */
@@ -84,7 +121,7 @@ const code = (lang: string, src: string) => `\`\`\`${lang}\n${src}\n\`\`\``;
 
 export const LLMS = `# Thinking Orbs
 
-> Animated thinking orbs for AI agent UIs: an open-source React component library (plus plain JS) with a state for each thing an agent does, like thinking, searching and compacting. No dependencies, built to read at 20px.
+> Animated thinking orbs for AI agent UIs: an open-source React component library (plus plain JS and SwiftUI) with a state for each thing an agent does, like thinking, searching and compacting. No dependencies, built to read at 20px.
 
 Website: https://thinkingorbs.com
 
@@ -100,6 +137,10 @@ ${code("bash", "npx shadcn@latest add https://thinkingorbs.com/r/orb.json")}
 
 The React orb needs nothing but React; the plain JS one needs nothing at all.
 
+For SwiftUI (iOS 17, macOS 14), add the Swift package. In Xcode: File › Add Package Dependencies, paste ${SWIFT_URL}, and add \`ThinkingOrbs\` to the app target. Or in a Package.swift:
+
+${code("swift", SWIFT_PACKAGE)}
+
 ## Usage
 
 ### React
@@ -110,6 +151,10 @@ ${code("tsx", USAGE)}
 
 ${code("js", VANILLA)}
 
+### SwiftUI
+
+${code("swift", SWIFTUI)}
+
 ## Props
 
 All optional. \`paused\` and \`className\` are React only; \`mountOrb\` returns \`pause()\` and \`play()\` instead, and takes its color from the svg's CSS \`color\`.
@@ -119,6 +164,8 @@ All optional. \`paused\` and \`className\` are React only; \`mountOrb\` returns 
 ${props.map((p) => `| \`${p.name}\` | \`${p.type}\` | ${p.fallback === "—" ? "—" : `\`${p.fallback}\``} | ${p.note} |`).join("\n")}
 
 The orb draws in the text color (\`currentColor\`). With reduced motion it holds still.
+
+In SwiftUI, \`Orb(...)\` takes the same options as typed parameters, minus \`shape\`, \`render\` and \`className\`, all optional: ${swiftProps.map((p) => `\`${p.name}: ${p.type} = ${p.fallback}\``).join(", ")}. It draws in the foreground style, so \`.foregroundStyle(.blue)\` tints it, and with Reduce Motion it holds still. Shapes and renders are web-only for now.
 
 ## Shapes and renders
 

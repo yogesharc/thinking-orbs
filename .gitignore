@@ -19,3 +19,7 @@ next-env.d.ts
 /.claude/
 /.agents/
 /AGENTS.md
+
+# Swift package build output.
+/.build/
+/.swiftpm/
