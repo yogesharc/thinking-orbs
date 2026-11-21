@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-**Thinking Orbs** (thinkingorbs.com) — animated status indicators for AI agents, an orb for each thing an agent does (working, reasoning, compacting, searching, background tasks, retrying, using a browser, idle). Distributed two ways from one source: the npm package (`npm i @yogesharc/thinking-orbs`, `import { Orb } from "@yogesharc/thinking-orbs"`, or `mountOrb` from `@yogesharc/thinking-orbs/vanilla` without React), and a shadcn registry item (`npx shadcn@latest add https://thinkingorbs.com/r/orb.json`) for people who want to own and edit the source. There is no CLI of our own.
+**Thinking Orbs** (thinkingorbs.com) — animated status indicators for AI agents, an orb for each thing an agent does (working, reasoning, compacting, searching, background tasks, retrying, using a browser, idle). Distributed two ways from one source, plus native ports for SwiftUI (`packages/swift`) and Jetpack Compose (`packages/android`): the npm package (`npm i @yogesharc/thinking-orbs`, `import { Orb } from "@yogesharc/thinking-orbs"`, or `mountOrb` from `@yogesharc/thinking-orbs/vanilla` without React), and a shadcn registry item (`npx shadcn@latest add https://thinkingorbs.com/r/orb.json`) for people who want to own and edit the source. There is no CLI of our own.
 
 The npm package is `@yogesharc/thinking-orbs`. npm refused the unscoped `thinkingorbs` as too similar to the existing `thinking-orbs`, an unrelated package with the same pitch, so keep the scope: dropping it installs theirs.
 
@@ -33,15 +33,22 @@ apps/web/            Next.js 16 site — also serves the registry
   app/               the homepage; app/llms.ts holds the docs as markdown; app/r/[item] (orb, orb-shapes, orb-renders .json) and app/llms.txt serve them
 packages/thinkingorbs/  the npm package; `tsc` compiles both registry/orb files into dist/
 packages/swift/         the SwiftUI port of orb-core.ts, built by the root Package.swift
+packages/android/       the Jetpack Compose port (Gradle): the thinkingorbs library, published through JitPack, and the gallery demo app
 ```
 
 ### The orb
 
-`registry/orb/orb-core.ts` draws every orb: one SVG of imperatively created circles, redrawn each frame. `VARIANTS` lists every public `state` and the `variant`s it comes in, `default` first (`<Orb state="working" variant="gyro" />`); variants are named after their motion. Internally the drawing keys on a `Look`: the state alone for `default`, else `state-variant`. Where the dots sit comes from `distribute()` (a Fibonacci sphere, or spiral arms for `background-spiral`); `density`, `dotSize` and `tilt` tune it; every behaviour on top of the spin is a branch keyed on the state inside the one `draw` loop, and spin periods come from `PERIOD`. Renaming a state or variant means changing it in `orb-core.ts`, `app/orbs.tsx`, `app/llms.ts`, `packages/thinkingorbs/README.md` and the Swift port.
+`registry/orb/orb-core.ts` draws every orb: one SVG of imperatively created circles, redrawn each frame. `VARIANTS` lists every public `state` and the `variant`s it comes in, `default` first (`<Orb state="working" variant="gyro" />`); variants are named after their motion. Internally the drawing keys on a `Look`: the state alone for `default`, else `state-variant`. Where the dots sit comes from `distribute()` (a Fibonacci sphere, or spiral arms for `background-spiral`); `density`, `dotSize` and `tilt` tune it; every behaviour on top of the spin is a branch keyed on the state inside the one `draw` loop, and spin periods come from `PERIOD`. Renaming a state or variant means changing it in `orb-core.ts`, `app/orbs.tsx`, `app/llms.ts`, `packages/thinkingorbs/README.md`, the Swift port and the Kotlin port.
 
 ### The Swift port
 
 `packages/swift/Sources/ThinkingOrbs/OrbCore.swift` is a line-for-line port of `orb-core.ts` (no shapes or renders), and `Orb.swift` wraps it in a SwiftUI `Canvas` on a `TimelineView(.animation)`. It doesn't build from the TypeScript, so any change to the drawing in `orb-core.ts` has to be made there too, keeping the same order of operations so the two draw the same frame. Watch JS truthiness: `if (zoom)` skips at 0, where Swift's `if let` wouldn't. `Package.swift` sits at the repo root because SwiftPM only reads a manifest there; `OrbGallery` is its demo app (`swift run OrbGallery`).
+
+### The Kotlin port
+
+`packages/android/thinkingorbs/src/main/kotlin/com/yogesharc/thinkingorbs/OrbCore.kt` is a line-for-line port of `OrbCore.swift`, so of `orb-core.ts` too, and `Orb.kt` wraps it in a Compose `Canvas` that reads the frame clock in the draw phase only. Like the Swift port it doesn't build from the TypeScript: **a drawing change in `orb-core.ts` has to be made in `OrbCore.kt` as well**, in the same order of operations, so all three draw the same frame. Kotlin's `%` on doubles keeps the dividend's sign, like JS and Swift's `fmod`. The public API mirrors the Swift package (`Orb(state, modifier, variant, size, color, …)`), with `explicitApi()` on, so anything new needs `public` or `internal`.
+
+`packages/android` is its own Gradle build (wrapper included; JDK 17 and an Android SDK). `./gradlew :thinkingorbs:assembleRelease` builds the library and `./gradlew :gallery:installDebug` puts the demo on a device or emulator. It ships through JitPack, which builds a GitHub tag as `com.github.yogesharc:thinking-orbs:<tag>`: the root `jitpack.yml` points it at `packages/android` and runs `publishToMavenLocal`, and the library's `maven-publish` block takes JitPack's `GROUP` and `VERSION`. So a release is just a tag; the version in the docs (`ANDROID_COORDINATE` in `app/llms.ts`, and the README) has to name a tag that contains the Android code.
 
 The core ships only the default shape and render. Other shapes and renders are opt-in plug-ins, so they cost nothing unless imported: `registry/orb/shapes.ts` (`OrbShape`: `points(count, look)` plus optional `scale` and `tip`) and `registry/orb/renders.ts` (`OrbRender`: `mount` returns a per-point `dot()` and a per-frame `frame()`; `flat` renders like halftone and lines drop the tilt, and Working's ring runs straight down). They ship as `@yogesharc/thinking-orbs/shapes` and `@yogesharc/thinking-orbs/renders`, and as the `orb-shapes` and `orb-renders` registry items. Not every state is tuned for every extra, by design.
 

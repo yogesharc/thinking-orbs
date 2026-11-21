@@ -43,6 +43,23 @@ Orb(state: .reasoning)
 
 It takes the same props as the React `Orb`, except shapes and renders. Tint it with `.foregroundStyle`.
 
+## Jetpack Compose
+
+For Android 5 (API 21) and up, from [JitPack](https://jitpack.io/#yogesharc/thinking-orbs). Add `maven("https://jitpack.io")` to the repositories in `settings.gradle.kts`, then:
+
+```kotlin
+implementation("com.github.yogesharc:thinking-orbs:0.1.3")
+```
+
+```kotlin
+import com.yogesharc.thinkingorbs.Orb
+import com.yogesharc.thinkingorbs.OrbState
+
+Orb(OrbState.Reasoning)
+```
+
+It takes the same props as the SwiftUI `Orb`, plus a `modifier` and a `color`, which defaults to the content color around it like an `Icon`.
+
 ## Working on it
 
 ```
@@ -50,6 +67,7 @@ apps/web/               the site at thinkingorbs.com, which also serves the shad
   registry/orb/         the orb itself: orb-core.ts draws it, orb.tsx wraps it for React
 packages/thinkingorbs/  the npm package, compiled from apps/web/registry/orb
 packages/swift/         the SwiftUI package, a hand port of orb-core.ts (its manifest is Package.swift at the root)
+packages/android/       the Jetpack Compose library, a hand port of the Swift one, and its Gallery demo app
 ```
 
 The orb's source lives once, in `apps/web/registry/orb`. The site imports it, the registry serves it, and the package compiles it.
@@ -58,6 +76,7 @@ The orb's source lives once, in `apps/web/registry/orb`. The site imports it, th
 cd apps/web && pnpm install && cd ../..
 pnpm dev                                     # the site on localhost:3000
 cd packages/thinkingorbs && pnpm install && pnpm build   # the npm package
+cd packages/android && ./gradlew :gallery:installDebug   # the Android gallery, on a device or emulator
 ```
 
 ## License
