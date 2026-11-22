@@ -1,13 +1,18 @@
 package com.yogesharc.thinkingorbs
 
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
@@ -56,20 +61,23 @@ public fun Orb(
 ) {
     val config = OrbConfig(Look.of(state, variant), size.value.toDouble(), density, dotSize, tilt, direction)
     val engine = remember(config) { OrbEngine(config) }
-    val context = LocalContext.current
-    val still = remember(context) {
-        Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
-    }
+    val still = animationsOff()
     // The frame clock is read in the draw phase alone, so a turning orb redraws without recomposing its row.
     var now by remember { mutableLongStateOf(0L) }
     LaunchedEffect(paused, still) {
         if (paused || still) return@LaunchedEffect
         while (true) withFrameMillis { now = it }
     }
+    // The time this orb last drew. Paused, it keeps to it, though others of its look carry the shared clock on.
+    val drawn = remember { doubleArrayOf(Double.NaN) }
     val clock = "${config.look.key}@$speed"
     val described = if (label != null) Modifier.semantics { contentDescription = label; role = Role.Image } else Modifier
     Canvas(modifier.size(size).then(described)) {
-        val t = if (still) 0.0 else tick(clock, now.toDouble(), speed)
+        val t = when {
+            still -> 0.0
+            paused && !drawn[0].isNaN() -> drawn[0]
+            else -> tick(clock, now.toDouble(), speed).also { drawn[0] = it }
+        }
         val k = this.size.width / config.size.toFloat()
         engine.draw(t) { x, y, r, a ->
             // Opacity to two places like the web's; no dot drops below 0.45dp, or it renders as a grey haze.
@@ -77,4 +85,23 @@ public fun Orb(
             if (o > 0) drawCircle(color, (max(0.45, r) * k).toFloat(), Offset((x * k).toFloat(), (y * k).toFloat()), alpha = o / 100f)
         }
     }
+}
+
+/** Whether animations are off in the system's settings, kept up to date as the user changes them. */
+@Composable
+private fun animationsOff(): Boolean {
+    val resolver = LocalContext.current.contentResolver
+    fun read() = Settings.Global.getFloat(resolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+    var off by remember(resolver) { mutableStateOf(read()) }
+    DisposableEffect(resolver) {
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                off = read()
+            }
+        }
+        resolver.registerContentObserver(Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE), false, observer)
+        off = read()
+        onDispose { resolver.unregisterContentObserver(observer) }
+    }
+    return off
 }
