@@ -48,6 +48,36 @@ struct Thinking: View {
   }
 }`;
 
+/** The Android library, built by JitPack from a GitHub tag: its coordinate, and the Gradle lines for it. */
+export const ANDROID_COORDINATE = "com.github.yogesharc:thinking-orbs:0.1.3";
+export const GRADLE = `// settings.gradle.kts
+dependencyResolutionManagement {
+  repositories {
+    google()
+    mavenCentral()
+    maven("https://jitpack.io")
+  }
+}
+
+// app/build.gradle.kts
+dependencies {
+  implementation("${ANDROID_COORDINATE}")
+}`;
+
+export const COMPOSE = `import com.yogesharc.thinkingorbs.Orb
+import com.yogesharc.thinkingorbs.OrbState
+
+@Composable
+fun Thinking() {
+  Row(
+    horizontalArrangement = Arrangement.spacedBy(8.dp),
+    verticalAlignment = Alignment.CenterVertically,
+  ) {
+    Orb(OrbState.Reasoning)
+    Text("Thinking")
+  }
+}`;
+
 /** The opt-in extras, in React and plain JS. */
 export const EXTRAS = `import { Orb } from "@yogesharc/thinking-orbs";
 import { cube } from "@yogesharc/thinking-orbs/shapes";
@@ -92,6 +122,22 @@ export const swiftProps = [
   { name: "label", type: "String?", fallback: "nil", note: "What VoiceOver reads. Hidden from it without one." },
 ];
 
+/** The composable's parameters: the SwiftUI ones, plus Compose's modifier and color. */
+export const composeProps = [
+  { name: "state", type: "OrbState", fallback: "OrbState.Idle", note: "What the agent is doing." },
+  { name: "modifier", type: "Modifier", fallback: "Modifier", note: "Layout and the rest, as any composable takes." },
+  { name: "variant", type: "OrbVariant", fallback: "OrbVariant.Default", note: "Which look of that state." },
+  { name: "size", type: "Dp", fallback: "20.dp", note: "Width and height." },
+  { name: "color", type: "Color", fallback: "LocalContentColor.current", note: "The dots' color: the text color around it, like an Icon." },
+  { name: "speed", type: "Double", fallback: "1.0", note: "Speed multiplier." },
+  { name: "paused", type: "Boolean", fallback: "false", note: "Freezes the animation." },
+  { name: "label", type: "String?", fallback: "null", note: "What TalkBack reads. Hidden from it without one." },
+  { name: "density", type: "Double", fallback: "1.0", note: "Dot count multiplier." },
+  { name: "dotSize", type: "Double", fallback: "1.0", note: "Dot size multiplier." },
+  { name: "tilt", type: "Double", fallback: "20.0", note: "Viewing angle from above, in degrees." },
+  { name: "direction", type: "OrbDirection?", fallback: "null", note: "Where using clicks, or which way its scroll goes. Anywhere without one." },
+];
+
 /** Every state, what it's for, and its variants, each described by how it moves. */
 const states: [string, string, [string, string][]][] = [
   ["working", "Busy, running a tool.", [["default", "A ring of light runs down it."], ["gyro", "Wobbles like a spinning top."]]],
@@ -121,7 +167,7 @@ const code = (lang: string, src: string) => `\`\`\`${lang}\n${src}\n\`\`\``;
 
 export const LLMS = `# Thinking Orbs
 
-> Animated thinking orbs for AI agent UIs: an open-source React component library (plus plain JS and SwiftUI) with a state for each thing an agent does, like thinking, searching and compacting. No dependencies, built to read at 20px.
+> Animated thinking orbs for AI agent UIs: an open-source React component library (plus plain JS, SwiftUI and Jetpack Compose) with a state for each thing an agent does, like thinking, searching and compacting. No dependencies, built to read at 20px.
 
 Website: https://thinkingorbs.com
 
@@ -141,6 +187,10 @@ For SwiftUI (iOS 17, macOS 14), add the Swift package. In Xcode: File › Add Pa
 
 ${code("swift", SWIFT_PACKAGE)}
 
+For Jetpack Compose (Android 5, API 21, and up), add the Android library from JitPack, which builds it from the GitHub tag:
+
+${code("kotlin", GRADLE)}
+
 ## Usage
 
 ### React
@@ -155,6 +205,10 @@ ${code("js", VANILLA)}
 
 ${code("swift", SWIFTUI)}
 
+### Jetpack Compose
+
+${code("kotlin", COMPOSE)}
+
 ## Props
 
 All optional. \`paused\` and \`className\` are React only; \`mountOrb\` returns \`pause()\` and \`play()\` instead, and takes its color from the svg's CSS \`color\`.
@@ -165,7 +219,11 @@ ${props.map((p) => `| \`${p.name}\` | \`${p.type}\` | ${p.fallback === "—" ? "
 
 The orb draws in the text color (\`currentColor\`). With reduced motion it holds still.
 
-In SwiftUI, \`Orb(...)\` takes the same options as typed parameters, minus \`shape\`, \`render\` and \`className\`, all optional: ${swiftProps.map((p) => `\`${p.name}: ${p.type} = ${p.fallback}\``).join(", ")}. It draws in the foreground style, so \`.foregroundStyle(.blue)\` tints it, and with Reduce Motion it holds still. Shapes and renders are web-only for now.
+In SwiftUI, \`Orb(...)\` takes the same options as typed parameters, minus \`shape\`, \`render\` and \`className\`, all optional: ${swiftProps.map((p) => `\`${p.name}: ${p.type} = ${p.fallback}\``).join(", ")}. It draws in the foreground style, so \`.foregroundStyle(.blue)\` tints it, and with Reduce Motion it holds still.
+
+In Compose, \`Orb(...)\` takes the same options, all optional, plus a \`modifier\` and a \`color\`: ${composeProps.map((p) => `\`${p.name}: ${p.type} = ${p.fallback}\``).join(", ")}. Without a \`color\` it draws in the content color around it, as an \`Icon\` does, and with animations turned off in the system's settings it holds still.
+
+Shapes and renders are web-only for now.
 
 ## Shapes and renders
 

@@ -1,0 +1,6 @@
+# JitPack builds the Android library from a tag: com.github.yogesharc:thinking-orbs:<tag>.
+# Its Gradle build lives in packages/android, not at the root, so say how to publish it.
+jdk:
+  - openjdk17
+install:
+  - cd packages/android && ./gradlew :thinkingorbs:publishToMavenLocal --no-daemon

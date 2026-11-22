@@ -39,7 +39,7 @@ States and their variants (`default` is each state's own look): `working` (`gyro
 
 It's a client component with no dependencies beyond React 18+. With `prefers-reduced-motion` it holds still.
 
-Building for iOS or macOS? The same orbs come as a native SwiftUI package: see [SwiftUI](https://github.com/yogesharc/thinking-orbs#swiftui).
+Building for iOS or macOS? The same orbs come as a native SwiftUI package: see [SwiftUI](https://github.com/yogesharc/thinking-orbs#swiftui). For Android, see [Jetpack Compose](https://github.com/yogesharc/thinking-orbs#jetpack-compose).
 
 ## Shapes and renders
 
